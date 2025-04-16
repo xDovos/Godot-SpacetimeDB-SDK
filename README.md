@@ -10,6 +10,7 @@
     *   Use appropriate Godot types (`PackedByteArray` for `Identity`, `int` for `Timestamp`/`u64`/`i64`, `float` for `f32`, `String` for `String`, `bool` for `bool`).
     *   **Crucially:** Add metadata in the `_init()` function of each schema resource:
         *   `set_meta("primary_key", "your_pk_field_name")` - Specify the field name used as the primary key.
+        *   !!! ***EVERY TABLE MUST HAVE PRIMARY KEY, IT NEEDED FOR CORRECT DESERIALIZE*** !!!
         *   `set_meta("bsatn_type_your_int_field", "u64")` (or `i64`, `u32`, etc.) - Specify the exact BSATN integer type for **all** `@export var field_name: int` properties.
 
     **Example (`schema/User.gd`):**
