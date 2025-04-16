@@ -1,3 +1,4 @@
+## TESTED WITH: `GODOT 4.4.1` and `SpacetimeDB 1.1.0`
 
 ## Setup
 
