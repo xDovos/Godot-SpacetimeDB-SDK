@@ -236,6 +236,14 @@ func subscribe(queries: PackedStringArray) -> int:
 		printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
 
+func get_properly_formatting(args: Dictionary) -> Dictionary:
+	for i in args:
+		match typeof(args[i]):
+			TYPE_VECTOR2 : args[i] = [args[i].x, args[i].y]
+			TYPE_VECTOR3 : args[i] = [args[i].x, args[i].y, args[i].z]
+			_: args[i] = args[i]
+	return args
+	
 func call_reducer(reducer_name: String, args: Dictionary, notify_on_done: bool = true) -> int:
 	if not is_connected_db():
 		#printerr("SpacetimeDBClient: Cannot call reducer, not connected.")
@@ -253,9 +261,10 @@ func call_reducer(reducer_name: String, args: Dictionary, notify_on_done: bool =
 	# IMPORTANT: The 'args' field here expects a *string* containing JSON,
 	# matching the structure from your original code.
 	# If the server expects args as a nested JSON object, adjust accordingly.
+	
 	var call_reducer_payload = {
 		"reducer": reducer_name,
-		"args": JSON.stringify(args), # Stringify the arguments dictionary
+		"args": JSON.stringify(get_properly_formatting(args)), # Stringify the arguments dictionary
 		"request_id": request_id,
 		"flags": flags
 	}

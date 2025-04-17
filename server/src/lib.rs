@@ -1,9 +1,21 @@
 use spacetimedb::{
     rand::{seq::SliceRandom, Rng},
-    reducer, table, ConnectionId, Identity, ReducerContext, Table, Timestamp,
+    reducer, table, ConnectionId, Identity, ReducerContext, SpacetimeType, Table, Timestamp,
 };
 
 const PLAYER_SPEED: f32 = 10.0;
+#[derive(SpacetimeType)]
+pub struct Vector3 {
+    x: f32,
+    y: f32,
+    z: f32,
+}
+
+#[derive(SpacetimeType)]
+pub struct Vector2 {
+    x: f32,
+    y: f32,
+}
 
 #[table(name = user, public)]
 pub struct User {
@@ -11,12 +23,8 @@ pub struct User {
     identity: Identity,
     name: String,
     online: bool,
-    last_position_x: f32,
-    last_position_y: f32,
-    last_position_z: f32,
-    direction_x: f32,
-    direction_y: f32,
-    direction_z: f32,
+    last_position: Vector3,
+    direction: Vector2,
     last_update: Timestamp,
 }
 
@@ -100,12 +108,12 @@ pub fn client_connected(ctx: &ReducerContext) {
             name: new_name.clone(),
             identity: ctx.sender,
             online: true,
-            last_position_x: pos.0,
-            last_position_z: pos.1,
-            last_position_y: 0.0,
-            direction_x: 0.0,
-            direction_y: 0.0,
-            direction_z: 0.0,
+            last_position: Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            direction: Vector2 { x: 0.0, y: 0.0 },
             last_update: ctx.timestamp,
         });
         if let Some(connection_id) = ctx.connection_id {
@@ -133,7 +141,7 @@ pub fn get_random_position(ctx: &ReducerContext) -> (f32, f32) {
     (x_pos, z_pos)
 }
 #[reducer]
-pub fn move_user(ctx: &ReducerContext, direction_x: f32, direction_z: f32) -> Result<(), String> {
+pub fn move_user(ctx: &ReducerContext, new_input: Vector2) -> Result<(), String> {
     let current_time = ctx.timestamp;
 
     if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
@@ -146,22 +154,20 @@ pub fn move_user(ctx: &ReducerContext, direction_x: f32, direction_z: f32) -> Re
 
         // --- Calculate New Position ---
         // Based on the *previous* direction stored on the server and the time delta.
-        let mut new_pos_x = user.last_position_x;
-        let mut new_pos_y = user.last_position_y; // Keep Y the same for now
-        let mut new_pos_z = user.last_position_z;
+        let mut new_pos = user.last_position;
 
         // Only move if the previous direction was non-zero
         let prev_dir_len_sq =
-            user.direction_x * user.direction_x + user.direction_z * user.direction_z;
+            user.direction.x * user.direction.x + user.direction.y * user.direction.y;
         if prev_dir_len_sq > 0.001 {
-            new_pos_x += user.direction_x * PLAYER_SPEED * delta_s;
-            new_pos_z += user.direction_z * PLAYER_SPEED * delta_s;
+            new_pos.x += user.direction.x * PLAYER_SPEED * delta_s;
+            new_pos.z += user.direction.y * PLAYER_SPEED * delta_s;
         }
 
         // --- Normalize New Direction ---
         // Normalize the direction received from the client.
-        let mut new_dir_x = direction_x;
-        let mut new_dir_z = direction_z;
+        let mut new_dir_x = new_input.x;
+        let mut new_dir_z = new_input.y;
         let new_dir_len_sq = new_dir_x * new_dir_x + new_dir_z * new_dir_z;
 
         if new_dir_len_sq > 0.001 {
@@ -177,12 +183,8 @@ pub fn move_user(ctx: &ReducerContext, direction_x: f32, direction_z: f32) -> Re
 
         // --- Update User State ---
         ctx.db.user().identity().update(User {
-            last_position_x: new_pos_x,
-            last_position_y: new_pos_y, // Update Y if needed
-            last_position_z: new_pos_z,
-            direction_x: new_dir_x,
-            direction_y: 0.0, // Assuming no vertical client input for now
-            direction_z: new_dir_z,
+            last_position: new_pos,
+            direction: new_input,
             last_update: current_time,
             ..user
         });

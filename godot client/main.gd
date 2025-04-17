@@ -124,7 +124,7 @@ func _handle_user_update(user_data: User):
 				# If local player is NOT currently providing input, gently correct its position
 				# towards the server state to prevent drift.
 				if local_player_node and local_player_node.get_movement_input().is_zero_approx():
-					var server_pos = Vector3(user_data.last_position_x, user_data.last_position_y, user_data.last_position_z)
+					var server_pos = user_data.last_position
 					var current_pos = local_player_node.global_position
 					if not current_pos.is_equal_approx(server_pos):
 						# Lerp towards server position (adjust alpha for smoothness)
@@ -151,11 +151,11 @@ func _spawn_player(user_data: User):
 	add_child(player_node) # Add to the scene
 
 	# Set initial state
-	player_node.global_position = Vector3(user_data.last_position_x, user_data.last_position_y, user_data.last_position_z)
+	player_node.global_position = user_data.last_position
 	# Set initial rotation based on direction (if needed)
-	var dir := Vector3(user_data.direction_x, 0, user_data.direction_y)
-	if dir.length_squared() > 0.01:
-		player_node.look_at(player_node.global_position + dir, Vector3.UP)
+	var dir := user_data.direction
+	#if dir.length_squared() > 0.01:
+	#	player_node.look_at(player_node.global_position + dir, Vector3.UP)
 
 	# Store reference and mark if local
 	spawned_players[user_data.identity] = player_node
@@ -197,8 +197,6 @@ func _on_local_player_input_changed(new_input: Vector2):
 	# Call the 'move' reducer with the new direction (input vector)
 	# The server will calculate the position based on its last known state.
 	spacetimedb_client.call_reducer("move_user", {
-		"direction_x": new_input.x,
-		"direction_z": new_input.y # Assuming Y in Vector2 maps to Z in 3D world for direction
-		# We DO NOT send position from the client anymore
+		"new_input": new_input,
 	})
 	# Note: We don't wait for the response here. The update will come via row_updated.

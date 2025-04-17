@@ -361,6 +361,7 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 						"i16": value = read_i16_le(temp_spb) # Assuming function exists
 						"u8": value = read_u8(temp_spb)
 						"i8": value = read_i8(temp_spb)     # Assuming function exists
+						"Vector3":value = Vector3(read_f32_le(temp_spb), read_f32_le(temp_spb), read_f32_le(temp_spb))
 						_:
 							_set_error("Unknown BSATN type '%s' in metadata for int property '%s'" % [bsatn_type, prop.name], temp_spb.get_position())
 							return false
@@ -381,16 +382,19 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 
 			TYPE_STRING:
 				value = read_string_with_u32_len(temp_spb)
-
+				
 			TYPE_BOOL:
 				value = read_bool(temp_spb)
-
-			# Handle other types like Vector2, Vector3 if needed
-			# TYPE_VECTOR3:
-			#    var x = read_f32_le(temp_spb)
-			#    var y = read_f32_le(temp_spb)
-			#    var z = read_f32_le(temp_spb)
-			#    if not has_error(): value = Vector3(x, y, z)
+				
+			TYPE_VECTOR3:
+				var x = read_f32_le(temp_spb)
+				var y = read_f32_le(temp_spb)
+				var z = read_f32_le(temp_spb)
+				if not has_error(): value = Vector3(x, y, z)
+			TYPE_VECTOR2:
+				var x = read_f32_le(temp_spb)
+				var y = read_f32_le(temp_spb)
+				if not has_error(): value = Vector2(x, y)
 
 			_:
 				_set_error("Unsupported property type '%s' for BSATN deserialization of property '%s' in resource '%s'" % [type_string(prop_type), prop.name, resource.get_script().resource_path], temp_spb.get_position())
