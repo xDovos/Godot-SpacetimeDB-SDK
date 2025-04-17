@@ -37,6 +37,7 @@ player_prefab = ExtResource("3_h2yge")
 
 [node name="SpacetimeDBClient" type="Node" parent="MainClient"]
 script = ExtResource("2_0xm2m")
+base_url = "https://flametime.cfd/spacetime"
 one_time_token = true
 
 [node name="Camera3D" type="Camera3D" parent="."]

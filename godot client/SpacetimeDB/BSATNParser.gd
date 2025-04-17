@@ -342,9 +342,6 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 					value = read_identity(temp_spb) # Reads 32 bytes
 				elif prop.name == &"connection_id":
 					value = read_bytes(temp_spb, 16) # Reads 16 bytes
-				elif prop.name == &"message_id" and resource is Message: # Check if message_id is UUID
-					# Assuming message_id as UUID (16 bytes) if it's PackedByteArray
-					value = read_bytes(temp_spb, 16)
 				else:
 					# Default assumption or require metadata
 					push_warning("Assuming PackedByteArray property '%s' is an Identity (32 bytes)." % prop.name)
@@ -425,21 +422,28 @@ func parse_packet(buffer: PackedByteArray) -> Resource:
 	if buffer.is_empty():
 		_set_error("Input buffer is empty", 0)
 		return null
-
-	# Read overall message compression tag (usually 0 for None)
+		
 	var compression_tag := read_u8(spb)
 	if has_error(): return null
-
+	
+	#print("DEBUG: Received compression_tag type: 0x%02X" % compression_tag)
+	#if compression_tag == 0x02:
+	#	print("DEBUG: Detected GZIP stream (first byte 0x1F). Attempting decompression...")
+	#	print("IN GZIP : ", buffer.hex_encode())
+	#	spb.data_array = _decompressor.decompress(buffer, DataDecompressor.CompressionType.GZIP)
+	#	if _decompressor.has_error() or spb.data_array == null:
+	#		_set_error("Failed to decompress GZIP data received from server. Cause: %s" % _decompressor.get_last_error(), 0)
+	#		return null
+	#	print("DEBUG: GZIP Decompression successful.")
+	
+	##TODO: Compression tag for inserts or whole message?
 	if compression_tag != 0:
-		# TODO: Implement decompression (Brotli=1, Gzip=2) if needed.
-		# Requires external libraries or Godot built-ins if available.
-		# Decompress the rest of the buffer (spb.get_data(spb.get_size() - spb.get_position())[1])
-		# and create a new StreamPeerBuffer with the decompressed data.
-		_set_error("Compressed messages (tag %d) are not supported yet." % compression_tag, 0)
+		_set_error("Compression not supported! Compressed messages (tag %d) are not supported yet." % compression_tag, 0)
 		return null
 
 	# Read the ServerMessage enum tag (u8)
 	var msg_type := read_u8(spb)
+	
 	if has_error(): return null
 
 	# Call the specific parser function based on the message type
@@ -556,6 +560,7 @@ func read_database_update(spb: StreamPeerBuffer) -> DatabaseUpdateData:
 	return resource
 
 # Reads TableUpdate structure. Returns TableUpdateData resource.
+##TODO: Compression support for inserts? 
 func read_table_update(spb: StreamPeerBuffer) -> TableUpdateData:
 	var resource := TableUpdateData.new()
 	resource.table_id = read_u32_le(spb)

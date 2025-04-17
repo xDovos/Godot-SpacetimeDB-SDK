@@ -24,7 +24,7 @@ pub struct User {
 pub struct Message {
     #[primary_key]
     #[auto_inc]
-    messge_id: u64,
+    message_id: u64,
     sender: Identity,
     sent: Timestamp,
     text: String,
@@ -64,7 +64,7 @@ pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
         sender: ctx.sender,
         text,
         sent: ctx.timestamp,
-        messge_id: 0,
+        message_id: 0,
     });
 
     Ok(())

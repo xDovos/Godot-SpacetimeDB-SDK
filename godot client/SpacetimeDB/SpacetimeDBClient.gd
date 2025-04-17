@@ -9,11 +9,6 @@ class_name SpacetimeDBClient extends Node
 @export var auto_request_token: bool = true
 @export var token_save_path: String = "user://spacetimedb_token.dat" # Use a more specific name
 @export var one_time_token:bool = false
-enum Compression{
-	None,
-	Brotli,
-	GZip
-}
 @export var compression:SpacetimeDBConnection.CompressionPreference;
 # --- Components ---
 var _connection: SpacetimeDBConnection

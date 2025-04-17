@@ -6,7 +6,6 @@ var _target_url: String
 var _token: String
 var _is_connected := false
 var _connection_requested := false
-var _compression:int
 
 # Protocol constants
 const BSATN_PROTOCOL = "v1.bsatn.spacetimedb"
@@ -20,7 +19,7 @@ signal connection_error(code: int, reason: String)
 signal message_received(data: PackedByteArray) # Always BSATN
 
 func _init(compression:int):
-	_compression = compression
+	preferred_compression = compression
 	set_process(false) # Don't process until connect is called
 
 func set_token(token: String):
