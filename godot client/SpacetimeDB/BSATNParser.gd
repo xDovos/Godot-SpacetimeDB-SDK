@@ -307,9 +307,6 @@ func read_bsatn_row_list(spb: StreamPeerBuffer) -> Array[PackedByteArray]:
 	return rows
 
 # --- Row Deserialization into Resource ---
-
-# In BSATNParser.gd
-
 # Populates an existing Resource instance from raw BSATN bytes based on its exported properties.
 # Assumes the order of @export properties matches the BSATN field order.
 # Uses metadata "bsatn_type_PROPERTYNAME" for integer types (u8, i8, u16, i16, u32, i32, u64, i64).
@@ -356,12 +353,11 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 						"u64": value = read_u64_le(temp_spb)
 						"i64": value = read_i64_le(temp_spb)
 						"u32": value = read_u32_le(temp_spb)
-						"i32": value = read_i32_le(temp_spb) # Assuming function exists
+						"i32": value = read_i32_le(temp_spb) 
 						"u16": value = read_u16_le(temp_spb)
-						"i16": value = read_i16_le(temp_spb) # Assuming function exists
+						"i16": value = read_i16_le(temp_spb) 
 						"u8": value = read_u8(temp_spb)
-						"i8": value = read_i8(temp_spb)     # Assuming function exists
-						"Vector3":value = Vector3(read_f32_le(temp_spb), read_f32_le(temp_spb), read_f32_le(temp_spb))
+						"i8": value = read_i8(temp_spb)    
 						_:
 							_set_error("Unknown BSATN type '%s' in metadata for int property '%s'" % [bsatn_type, prop.name], temp_spb.get_position())
 							return false

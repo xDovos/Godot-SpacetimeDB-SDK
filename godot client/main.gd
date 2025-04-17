@@ -196,7 +196,8 @@ func _on_local_player_input_changed(new_input: Vector2):
 	#print("Game: Local input changed: ", new_input, ". Sending move reducer call.")
 	# Call the 'move' reducer with the new direction (input vector)
 	# The server will calculate the position based on its last known state.
-	spacetimedb_client.call_reducer("move_user", {
+	var id = spacetimedb_client.call_reducer("move_user", {
 		"new_input": new_input,
 	})
-	# Note: We don't wait for the response here. The update will come via row_updated.
+	var response := await spacetimedb_client.wait_for_reducer_response(id)
+	print("Done! ", response.reducer_call.request_id)

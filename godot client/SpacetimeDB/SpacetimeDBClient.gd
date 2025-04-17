@@ -286,3 +286,35 @@ func call_reducer(reducer_name: String, args: Dictionary, notify_on_done: bool =
 	else:
 		#printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
+		
+# Waits asynchronously for a TransactionUpdate with a specific request ID.
+# Returns the TransactionUpdateData or null if timed out.
+#WARNING Not sure about this
+func wait_for_reducer_response(request_id_to_match: int, timeout_seconds: float = 10.0) -> TransactionUpdateData:
+	if request_id_to_match < 0:
+		return null
+
+	var signal_result: TransactionUpdateData = null
+	var timeout_ms: float = timeout_seconds * 1000.0
+	var start_time: float = Time.get_ticks_msec()
+
+	while Time.get_ticks_msec() - start_time < timeout_ms:
+		var received_signal = await transaction_update_received
+		if _check_reducer_response(received_signal, request_id_to_match):
+			signal_result = received_signal
+			break
+
+	if signal_result == null:
+		printerr("SpacetimeDBClient: Timeout waiting for response for Req ID: %d" % request_id_to_match)
+		#i realy need it here if i already await?
+		reducer_call_timeout.emit(request_id_to_match)
+		return null
+	else:
+		var tx_update: TransactionUpdateData = signal_result
+		print("SpacetimeDBClient: Received matching response for Req ID: %d" % request_id_to_match)
+		#i realy need it here if i already await?
+		reducer_call_response.emit(tx_update.reducer_call)
+		return tx_update
+
+func _check_reducer_response(update: TransactionUpdateData, request_id_to_match: int) -> bool:
+	return update != null and update.reducer_call != null and update.reducer_call.request_id == request_id_to_match
