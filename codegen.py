@@ -13,6 +13,8 @@ TYPE_MAP = {
     "u32": "int",
     "i32": "int",
     "Timestamp": "int",
+    "Vector3":"Vector3",
+    "Vector2":"Vector2"
 }
 META_TYPE_MAP = {
     "Timestamp": "i64",
