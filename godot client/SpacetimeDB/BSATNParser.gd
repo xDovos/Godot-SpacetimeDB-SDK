@@ -13,34 +13,28 @@ func _init(schema_path: String = "res://schema") -> void:
 # Loads table row schema scripts (e.g., User.gd, Message.gd)
 func _load_row_schemas(path: String) -> void:
 	_possible_row_schemas.clear()
-	var dir := DirAccess.open(path)
-	if dir:
-		dir.list_dir_begin()
-		var file_name := dir.get_next()
-		while file_name != "":
-			if not dir.current_is_dir() and file_name.ends_with(".gd"):
-				var script_path := path.path_join(file_name)
-				var script: GDScript = load(script_path)
-				if script and script.can_instantiate():
-					# Determine table name (metadata, function, or filename fallback)
-					var instance_for_name = script.new()
-					var table_name := file_name.get_basename().get_file() # Fallback
-					if instance_for_name:
-						if instance_for_name.has_meta("table_name"):
-							table_name = instance_for_name.get_meta("table_name")
-						elif instance_for_name.has_method("get_table_name"):
-							table_name = instance_for_name.get_table_name()
-
-					if not table_name.is_empty():
+	var files = DirAccess.get_files_at(path)
+	for file_name in files:
+		if file_name.ends_with(".remap"): file_name = file_name.replace(".remap", "");
+		if file_name.ends_with(".gd") == false:continue;
+		var script_path := path.path_join(file_name)
+		var script: GDScript = load(script_path)
+		if script and script.can_instantiate():
+			# Determine table name (metadata, function, or filename fallback)
+			var instance_for_name = script.new()
+			var table_name := file_name.get_basename().get_file() # Fallback
+			if instance_for_name:
+				if instance_for_name.has_meta("table_name"):
+					table_name = instance_for_name.get_meta("table_name")
+				elif instance_for_name.has_method("get_table_name"):
+					table_name = instance_for_name.get_table_name()
+				if not table_name.is_empty():
 						#print("Loaded row schema for table: '", table_name, "' from ", script_path)
-						_possible_row_schemas[table_name.to_lower()] = script
-					else:
-						printerr("BSATNParser: Could not determine table name for schema: ", script_path)
+					_possible_row_schemas[table_name.to_lower()] = script
 				else:
-					printerr("BSATNParser: Failed to load or instantiate script: ", script_path)
-			file_name = dir.get_next()
-	else:
-		printerr("BSATNParser: Could not open schema directory: ", path)
+					printerr("BSATNParser: Could not determine table name for schema: ", script_path)
+		else:
+			printerr("BSATNParser: Failed to load or instantiate script: ", script_path)
 
 # --- Error Handling ---
 
