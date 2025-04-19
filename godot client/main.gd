@@ -1,20 +1,13 @@
-# In your main game script (e.g., Main.gd)
 extends Node3D
 
 @export var player_prefab: PackedScene
 
-var local_identity_bytes: PackedByteArray
-var spawned_players: Dictionary = {}
-var local_player_node: RigidBody3D = null
-
-# --- Godot Lifecycle ---
-
 func _ready():
 	SpacetimeDB.connect_db(
-		"https://flametime.cfd/spacetime",
-		"quickstart-chat",
-		0,
-		true
+		"https://flametime.cfd/spacetime", #WARNING <--- replace it with your url
+		"quickstart-chat", #WARNING <--- replace it with your database
+		SpacetimeDBConnection.CompressionPreference.NONE,
+		true #WARNING <--- one time token. New window = new token
 		)
 
 	SpacetimeDB.connected.connect(_on_spacetimedb_connected)
@@ -35,7 +28,6 @@ func _on_spacetimedb_disconnected():
 
 func _on_spacetimedb_connection_error(code, reason):
 	printerr("Game: SpacetimeDB Connection Error: ", reason)
-	# Show error message to user? Retry connection?
 
 func _on_spacetimedb_identity_received(identity_token: IdentityTokenData):
 	print("Game: My Identity: 0x", identity_token.identity.hex_encode())
