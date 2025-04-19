@@ -1,8 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://cd0jglqxoggeg"]
+[gd_scene load_steps=10 format=3 uid="uid://cd0jglqxoggeg"]
 
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_h2yge"]
-[ext_resource type="Script" uid="uid://qtxibldey2qi" path="res://SpacetimeDB/SpacetimeDBClient.gd" id="2_0xm2m"]
-[ext_resource type="PackedScene" uid="uid://bgkmxyw21pc1m" path="res://components/player/player.tscn" id="3_h2yge"]
+[ext_resource type="PackedScene" uid="uid://dvenminxkaei3" path="res://scenes/player.tscn" id="2_0xm2m"]
+[ext_resource type="Script" uid="uid://cv6bu0sabs8yh" path="res://example_code/spawner.gd" id="3_h2yge"]
+[ext_resource type="Script" uid="uid://8c6novjs8hcp" path="res://schema/User.gd" id="4_lquwl"]
+[ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="5_7mycd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0xm2m"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -16,6 +18,11 @@ background_mode = 2
 sky = SubResource("Sky_h2yge")
 tonemap_mode = 2
 glow_enabled = true
+
+[sub_resource type="Resource" id="Resource_272bh"]
+script = ExtResource("5_7mycd")
+data_to_receive = ExtResource("4_lquwl")
+metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 
 [node name="Node3D" type="Node3D"]
 
@@ -31,14 +38,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
 use_collision = true
 size = Vector3(32, 0.5, 32)
 
-[node name="MainClient" type="Node2D" parent="."]
+[node name="MainClient" type="Node3D" parent="."]
 script = ExtResource("1_h2yge")
-player_prefab = ExtResource("3_h2yge")
-
-[node name="SpacetimeDBClient" type="Node" parent="MainClient"]
-script = ExtResource("2_0xm2m")
-base_url = "https://flametime.cfd/spacetime"
-one_time_token = true
+player_prefab = ExtResource("2_0xm2m")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 1, 15, 17)
+
+[node name="PlayerSpawner" type="Node3D" parent="."]
+script = ExtResource("3_h2yge")
+receiver = SubResource("Resource_272bh")
+player_scene = ExtResource("2_0xm2m")

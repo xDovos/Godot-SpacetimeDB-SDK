@@ -1,21 +1,13 @@
+pub mod main_types;
+
+use main_types::vectors::{Vector2, Vector3};
+
 use spacetimedb::{
     rand::{seq::SliceRandom, Rng},
-    reducer, table, ConnectionId, Identity, ReducerContext, SpacetimeType, Table, Timestamp,
+    reducer, table, Identity, ReducerContext, Table, Timestamp,
 };
 
 const PLAYER_SPEED: f32 = 10.0;
-#[derive(SpacetimeType)]
-pub struct Vector3 {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-#[derive(SpacetimeType)]
-pub struct Vector2 {
-    x: f32,
-    y: f32,
-}
 
 #[table(name = user, public)]
 pub struct User {
@@ -23,8 +15,15 @@ pub struct User {
     identity: Identity,
     name: String,
     online: bool,
+}
+
+#[table(name = user_data, public)]
+pub struct UserData {
+    #[primary_key]
+    identity: Identity,
     last_position: Vector3,
     direction: Vector2,
+    player_speed: f32,
     last_update: Timestamp,
 }
 
@@ -104,18 +103,21 @@ pub fn client_connected(ctx: &ReducerContext) {
     } else {
         let new_name = get_random_name(&ctx);
         let pos = get_random_position(&ctx);
+
         ctx.db.user().insert(User {
             name: new_name.clone(),
             identity: ctx.sender,
             online: true,
-            last_position: Vector3 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
+        });
+
+        ctx.db.user_data().insert(UserData {
+            identity: ctx.sender,
+            last_position: pos,
+            player_speed: PLAYER_SPEED,
             direction: Vector2 { x: 0.0, y: 0.0 },
             last_update: ctx.timestamp,
         });
+
         if let Some(connection_id) = ctx.connection_id {
             log::info!("ConnectionID : {}", connection_id);
         }
@@ -134,29 +136,28 @@ pub fn get_random_name(ctx: &ReducerContext) -> String {
     }
 }
 
-pub fn get_random_position(ctx: &ReducerContext) -> (f32, f32) {
-    let x_pos = ctx.rng().gen_range(-10.0..10.0);
-    let z_pos = ctx.rng().gen_range(-10.0..10.0);
+pub fn get_random_position(ctx: &ReducerContext) -> Vector3 {
+    let x = ctx.rng().gen_range(-10.0..10.0);
+    let y = 1.0;
+    let z = ctx.rng().gen_range(-10.0..10.0);
 
-    (x_pos, z_pos)
+    Vector3::new(x, y, z)
 }
+
 #[reducer]
 pub fn move_user(ctx: &ReducerContext, new_input: Vector2) -> Result<(), String> {
     let current_time = ctx.timestamp;
 
-    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
+    if let Some(user) = ctx.db.user_data().identity().find(ctx.sender) {
         // --- Calculate Time Delta ---
-        // Time elapsed since the server last updated this user's state
         let time_since_last_update = current_time
             .duration_since(user.last_update)
             .unwrap_or_default();
         let delta_s = time_since_last_update.as_secs_f32();
 
         // --- Calculate New Position ---
-        // Based on the *previous* direction stored on the server and the time delta.
         let mut new_pos = user.last_position;
 
-        // Only move if the previous direction was non-zero
         let prev_dir_len_sq =
             user.direction.x * user.direction.x + user.direction.y * user.direction.y;
         if prev_dir_len_sq > 0.001 {
@@ -165,26 +166,22 @@ pub fn move_user(ctx: &ReducerContext, new_input: Vector2) -> Result<(), String>
         }
 
         // --- Normalize New Direction ---
-        // Normalize the direction received from the client.
-        let mut new_dir_x = new_input.x;
-        let mut new_dir_z = new_input.y;
-        let new_dir_len_sq = new_dir_x * new_dir_x + new_dir_z * new_dir_z;
+        let mut new_dir = new_input;
+        let new_dir_len_sq = new_dir.x * new_dir.x + new_dir.y * new_dir.y;
 
         if new_dir_len_sq > 0.001 {
-            // If client intends to move
             let len = new_dir_len_sq.sqrt();
-            new_dir_x /= len;
-            new_dir_z /= len;
+            new_dir.x /= len;
+            new_dir.y /= len;
         } else {
-            // Client intends to stop
-            new_dir_x = 0.0;
-            new_dir_z = 0.0;
+            new_dir = Vector2::new(0.0, 0.0);
         }
 
         // --- Update User State ---
-        ctx.db.user().identity().update(User {
+        ctx.db.user_data().identity().update(UserData {
             last_position: new_pos,
-            direction: new_input,
+            direction: new_dir,
+            player_speed: PLAYER_SPEED,
             last_update: current_time,
             ..user
         });
@@ -216,6 +213,6 @@ pub fn client_disconnected(ctx: &ReducerContext) {
 }
 
 #[spacetimedb::reducer(init)]
-pub fn init(_ctx: &ReducerContext) {
-    // Called when the module is initially published
+pub fn init(ctx: &ReducerContext) {
+    log::info!("Start Invoke");
 }
