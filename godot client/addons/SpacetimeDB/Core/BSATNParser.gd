@@ -328,7 +328,6 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 		# Skip non-storage properties
 		if not (prop.usage & PROPERTY_USAGE_STORAGE):
 			continue
-
 		var value = null
 		var prop_type : Variant.Type = prop.type
 
@@ -343,7 +342,6 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 					# Default assumption or require metadata
 					push_warning("Assuming PackedByteArray property '%s' is an Identity (32 bytes)." % prop.name)
 					value = read_identity(temp_spb)
-
 			TYPE_INT:
 				# Logic for int using metadata "bsatn_type_..."
 				var meta_key = "bsatn_type_" + prop.name
@@ -409,8 +407,6 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 		push_warning("Extra %d bytes remaining after parsing resource '%s'" % [temp_spb.get_size() - temp_spb.get_position(), resource.get_script().resource_path])
 
 	return true
-
-
 # --- Top-Level Message Parsing ---
 
 # Entry point: Parses the entire byte buffer into a top-level message Resource.

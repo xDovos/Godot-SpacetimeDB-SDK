@@ -11,7 +11,8 @@ var _primary_key_cache: Dictionary = {}
 # Signals (if needed, better if this is a Node or uses a SignalBus Autoload)
 signal row_inserted(table_name: String, row: Resource)
 signal row_updated(table_name: String, row: Resource)
-signal row_deleted(table_name: String, primary_key) # Pass PK value
+signal row_deleted(table_name: String, row: Resource) 
+signal row_deleted_key(table_name: String, primary_key) 
 
 func _init(row_schemas: Dictionary):
 	self._row_schemas = row_schemas
@@ -80,10 +81,12 @@ func apply_table_update(table_update: TableUpdateData):
 
 	# Process deletes
 	for deleted_row: Resource in table_update.deletes:
+		#print(table_update.deletes.size())
 		var pk_value = deleted_row.get(pk_field)
 		if table_dict.has(pk_value):
 			table_dict.erase(pk_value)
-			emit_signal("row_deleted", table_update.table_name, pk_value)
+			row_deleted_key.emit(table_update.table_name, pk_value)
+			row_deleted.emit(table_update.table_name, deleted_row)
 		else:
 			push_warning("LocalDatabase: Tried to delete row with PK '", pk_value, "' from table '", table_update.table_name, "' but it wasn't found.")
 

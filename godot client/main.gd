@@ -17,7 +17,11 @@ func _ready():
 
 func _on_spacetimedb_connected():
 	print("Game: Connected to SpacetimeDB!")
-	var sub_req_id = SpacetimeDB.subscribe(["SELECT * FROM user", "SELECT * FROM user_data"])
+	var query = [
+		"SELECT * FROM user WHERE online == true", # Subscribe only for online users
+		"SELECT * FROM user_data" #Subscribe to user data updates
+	]
+	var sub_req_id = SpacetimeDB.subscribe(query)
 	if sub_req_id < 0:
 		printerr("Game: Failed to send subscription request.")
 	else:

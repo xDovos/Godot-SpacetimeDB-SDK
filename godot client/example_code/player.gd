@@ -7,7 +7,7 @@ var remote_input:Vector2;
 var remote_speed:float;
 
 func _ready() -> void:
-	receiver.on_receive.connect(user_data_received)
+	receiver.update.connect(user_data_received)
 	#Enable process only for local user
 	set_process(get_meta("is_local"))
 	

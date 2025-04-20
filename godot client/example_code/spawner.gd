@@ -5,7 +5,16 @@ extends Node3D
 var players:Dictionary[PackedByteArray, Node3D]
 
 func _ready() -> void:
-	receiver.on_receive.connect(receive_user)
+	receiver.update.connect(receive_user)
+	receiver.delete.connect(on_user_offline)
+	
+func on_user_offline(user_row:User):
+	var player = players.get(user_row.identity)
+	if player == null:return;
+	#print("Now offline: ", user_row.name)
+	player.queue_free()
+	players[user_row.identity] = null
+	pass
 	
 func receive_user(user_row:User):
 	var player = players.get(user_row.identity)

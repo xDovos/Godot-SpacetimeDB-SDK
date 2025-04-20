@@ -15,7 +15,6 @@ pub struct User {
     identity: Identity,
     name: String,
     online: bool,
-    //TODO: Support Option<T>
 }
 
 #[table(name = user_data, public)]
