@@ -9,6 +9,8 @@ class_name SpacetimeDBClient extends Node
 @export var token_save_path: String = "user://spacetimedb_token.dat" # Use a more specific name
 @export var one_time_token:bool = false
 @export var compression:SpacetimeDBConnection.CompressionPreference;
+@export var debug_mode:bool = true;
+
 # --- Components ---
 var _connection: SpacetimeDBConnection
 var _parser: BSATNParser
@@ -40,9 +42,15 @@ func _ready():
 	if auto_connect:
 		initialize_and_connect()
 
+func print_log(log_message:String):
+	if debug_mode:
+		print(log_message)
+	pass;
+	
 func initialize_and_connect():
 	if _is_initialized: return
-	print("SpacetimeDBClient: Initializing...")
+
+	print_log("SpacetimeDBClient: Initializing...")
 
 	# 1. Initialize Parser
 	_parser = BSATNParser.new(schema_path)
@@ -57,14 +65,14 @@ func initialize_and_connect():
 	add_child(_local_db) # Add as child if it needs signals
 
 	# 3. Initialize REST API Handler (optional, mainly for token)
-	_rest_api = SpacetimeDBRestAPI.new(base_url)
+	_rest_api = SpacetimeDBRestAPI.new(base_url, debug_mode)
 	_rest_api.token_received.connect(_on_token_received)
 	_rest_api.token_request_failed.connect(_on_token_request_failed)
 	# Connect other REST signals if needed
 	add_child(_rest_api)
 
 	# 4. Initialize Connection Handler
-	_connection = SpacetimeDBConnection.new(compression)
+	_connection = SpacetimeDBConnection.new(compression, debug_mode)
 	_connection.connected.connect(func(): connected.emit())
 	_connection.disconnected.connect(func(): disconnected.emit())
 	_connection.connection_error.connect(func(c, r): connection_error.emit(c, r))
@@ -72,7 +80,7 @@ func initialize_and_connect():
 	add_child(_connection)
 
 	_is_initialized = true
-	print("SpacetimeDBClient: Initialization complete.")
+	print_log("SpacetimeDBClient: Initialization complete.")
 
 	# 5. Get Token and Connect
 	_load_token_or_request()
@@ -87,13 +95,13 @@ func _load_token_or_request():
 				var saved_token := file.get_as_text().strip_edges()
 				file.close()
 				if not saved_token.is_empty():
-					print("SpacetimeDBClient: Using saved token.")
+					print_log("SpacetimeDBClient: Using saved token.")
 					_on_token_received(saved_token) # Directly use the saved token
 					return
 
 	# If no valid saved token, request a new one if auto-request is enabled
 	if auto_request_token:
-		print("SpacetimeDBClient: No valid saved token found, requesting new one.")
+		print_log("SpacetimeDBClient: No valid saved token found, requesting new one.")
 		_rest_api.request_new_token()
 	else:
 		printerr("SpacetimeDBClient: No token available and auto_request_token is false.")
@@ -108,7 +116,7 @@ func _generate_connection_id() -> String:
 	return random_bytes.hex_encode() # Return as hex string
 	
 func _on_token_received(received_token: String):
-	print("SpacetimeDBClient: Token acquired.")
+	print_log("SpacetimeDBClient: Token acquired.")
 	self._token = received_token
 	_save_token(received_token)
 	var conn_id = _generate_connection_id()
@@ -152,26 +160,26 @@ func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
 	# Handle known message types
 	if message_resource is InitialSubscriptionData:
 		var initial_sub: InitialSubscriptionData = message_resource
-		print("SpacetimeDBClient: Processing Initial Subscription (Req ID: %d)" % initial_sub.request_id)
+		print_log("SpacetimeDBClient: Processing Initial Subscription (Req ID: %d)" % initial_sub.request_id)
 		_local_db.apply_database_update(initial_sub.database_update)
 		emit_signal("database_initialized")
 
 	elif message_resource is IdentityTokenData:
 		var identity_token: IdentityTokenData = message_resource
-		print("SpacetimeDBClient: Received Identity Token.")
+		print_log("SpacetimeDBClient: Received Identity Token.")
 		_local_identity = identity_token
 		emit_signal("identity_received", identity_token)
 
 	elif message_resource is TransactionUpdateData: 
 		var tx_update: TransactionUpdateData = message_resource
-		#print("SpacetimeDBClient: Processing Transaction Update (Reducer: %s, Req ID: %d)" % [tx_update.reducer_call.reducer_name, tx_update.reducer_call.request_id])
+		#print_log("SpacetimeDBClient: Processing Transaction Update (Reducer: %s, Req ID: %d)" % [tx_update.reducer_call.reducer_name, tx_update.reducer_call.request_id])
 		# Apply changes to local DB only if committed
 		if tx_update.status.status_type == UpdateStatusData.StatusType.COMMITTED:
 			if tx_update.status.committed_update: # Check if update data exists
 				_local_db.apply_database_update(tx_update.status.committed_update)
 			else:
 				# This might happen if a transaction committed but affected 0 rows relevant to the client
-				print("SpacetimeDBClient: Committed transaction had no relevant row updates.")
+				print_log("SpacetimeDBClient: Committed transaction had no relevant row updates.")
 		elif tx_update.status.status_type == UpdateStatusData.StatusType.FAILED:
 			printerr("SpacetimeDBClient: Reducer call failed: ", tx_update.status.failure_message)
 		elif tx_update.status.status_type == UpdateStatusData.StatusType.OUT_OF_ENERGY:
@@ -181,16 +189,17 @@ func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
 		emit_signal("transaction_update_received", tx_update)
 
 	else:
-		print("SpacetimeDBClient: Received unhandled message resource type: ", message_resource.get_class())
+		print_log("SpacetimeDBClient: Received unhandled message resource type: " + message_resource.get_class())
 
 
 # --- Public API ---
 
-func connect_db(host_url:String, database_name:String, compression:SpacetimeDBConnection.CompressionPreference, one_time_token:bool = false):
+func connect_db(host_url:String, database_name:String, compression:SpacetimeDBConnection.CompressionPreference, one_time_token:bool = false, debug_mode:bool = false):
 	self.base_url = host_url;
 	self.database_name = database_name;
 	self.compression = compression
 	self.one_time_token = one_time_token
+	self.debug_mode = debug_mode
 	if not _is_initialized:
 		initialize_and_connect()
 	elif not _connection.is_connected_db():
@@ -227,8 +236,8 @@ func subscribe(queries: PackedStringArray) -> int:
 	var client_message = { "Subscribe": subscribe_payload }
 	var json_string := JSON.stringify(client_message)
 
-	print("SpacetimeDBClient: Sending subscription request via WebSocket (JSON), Req ID: %d" % request_id)
-	# print("SpacetimeDBClient: Queries: ", queries) # Optional debug
+	print_log("SpacetimeDBClient: Sending subscription request via WebSocket (JSON), Req ID: %d" % request_id)
+	# print_log("SpacetimeDBClient: Queries: ", queries) # Optional debug
 
 	# Send the JSON string as text over the WebSocket
 	if _connection and _connection._websocket: # Basic check
@@ -237,7 +246,7 @@ func subscribe(queries: PackedStringArray) -> int:
 			printerr("SpacetimeDBClient: Error sending Subscribe JSON message: ", err)
 			return -1 # Indicate error
 		else:
-			print("SpacetimeDBClient: Subscribe request sent successfully.")
+			print_log("SpacetimeDBClient: Subscribe request sent successfully.")
 			return request_id # Return the ID on success
 	else:
 		printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
@@ -254,7 +263,7 @@ func get_properly_formatting(args: Dictionary) -> Dictionary:
 	
 func call_reducer(reducer_name: String, args: Dictionary, notify_on_done: bool = true) -> int:
 	if not is_connected_db():
-		#printerr("SpacetimeDBClient: Cannot call reducer, not connected.")
+		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
 		return -1 # Indicate error
 
 	# Generate a request ID (ensure it's u32 range if needed, but randi is fine for now)
@@ -280,19 +289,19 @@ func call_reducer(reducer_name: String, args: Dictionary, notify_on_done: bool =
 	var client_message = { "CallReducer": call_reducer_payload }
 	var json_string := JSON.stringify(client_message)
 
-	#print("SpacetimeDBClient: Calling reducer '%s' via WebSocket (JSON), Req ID: %d" % [reducer_name, request_id])
+	#print_log("SpacetimeDBClient: Calling reducer '%s' via WebSocket (JSON), Req ID: %d" % [reducer_name, request_id])
 
 	# Send the JSON string as text over the WebSocket
 	# Access the internal _websocket peer directly (might need adjustment if _connection API changes)
 	if _connection and _connection._websocket: # Basic check
 		var err = _connection._websocket.send_text(json_string)
 		if err != OK:
-			#printerr("SpacetimeDBClient: Error sending CallReducer JSON message: ", err)
+			#print_logerr("SpacetimeDBClient: Error sending CallReducer JSON message: ", err)
 			return -1 # Indicate error
 		else:
 			return request_id # Return the ID on success
 	else:
-		#printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
+		#print_logerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
 		
 # Waits asynchronously for a TransactionUpdate with a specific request ID.
@@ -319,7 +328,7 @@ func wait_for_reducer_response(request_id_to_match: int, timeout_seconds: float 
 		return null
 	else:
 		var tx_update: TransactionUpdateData = signal_result
-		print("SpacetimeDBClient: Received matching response for Req ID: %d" % request_id_to_match)
+		print_log("SpacetimeDBClient: Received matching response for Req ID: %d" % request_id_to_match)
 		#i realy need it here if i already await?
 		reducer_call_response.emit(tx_update.reducer_call)
 		return tx_update

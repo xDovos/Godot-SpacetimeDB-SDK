@@ -1,4 +1,3 @@
-# addons/spacetimedb_client/SpacetimeDBRestAPI.gd
 class_name SpacetimeDBRestAPI extends Node
 
 # Enum to track the type of the currently pending request
@@ -9,19 +8,25 @@ var _base_url: String
 var _token: String
 # State variable to track the expected response type
 var _pending_request_type := RequestType.NONE
+var _debug_mode := false
 
 signal token_received(token: String)
 signal token_request_failed(error_code: int, response_body: String)
 signal reducer_call_completed(result: Dictionary) # Or specific resource
 signal reducer_call_failed(error_code: int, response_body: String)
 
-func _init(base_url: String):
+func _init(base_url: String, debug_mode: bool):
 	self._base_url = base_url
+	self._debug_mode = debug_mode
 	add_child(_http_request)
 	# Connect the signal ONCE
 	if not _http_request.is_connected("request_completed", Callable(self, "_on_request_completed")):
 		_http_request.request_completed.connect(_on_request_completed)
 
+func print_log(log_message:String):
+	if _debug_mode:
+		print(log_message)
+	pass;
 func set_token(token: String):
 	self._token = token
 
@@ -34,7 +39,7 @@ func request_new_token():
 		# Optionally queue or emit a busy error
 		return
 
-	print("SpacetimeDBRestAPI: Requesting new token...")
+	print_log("SpacetimeDBRestAPI: Requesting new token...")
 	var url := _base_url.path_join("/v1/identity")
 	# Set state *before* making the request
 	_pending_request_type = RequestType.TOKEN
@@ -63,7 +68,7 @@ func _handle_token_response(result_code: int, response_code: int, headers: Packe
 
 	if json.has("token") and json.token is String and not json.token.is_empty():
 		var new_token: String = json.token
-		print("SpacetimeDBRestAPI: New token received.")
+		print_log("SpacetimeDBRestAPI: New token received.")
 		set_token(new_token) # Store it internally as well
 		emit_signal("token_received", new_token)
 	else:

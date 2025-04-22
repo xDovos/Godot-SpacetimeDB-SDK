@@ -6,7 +6,7 @@ var _target_url: String
 var _token: String
 var _is_connected := false
 var _connection_requested := false
-
+var _debug_mode := false
 # Protocol constants
 const BSATN_PROTOCOL = "v1.bsatn.spacetimedb"
 
@@ -18,10 +18,16 @@ signal disconnected
 signal connection_error(code: int, reason: String)
 signal message_received(data: PackedByteArray) # Always BSATN
 
-func _init(compression:int):
+func _init(compression:int, debug_mode:bool):
 	preferred_compression = compression
+	self._debug_mode = debug_mode
 	set_process(false) # Don't process until connect is called
-
+	
+func print_log(log_message:String):
+	if _debug_mode:
+		print(log_message)
+	pass;
+	
 func set_token(token: String):
 	self._token = token
 
@@ -30,11 +36,11 @@ func set_compression_preference(preference: CompressionPreference):
 
 func connect_to_database(base_url: String, database_name: String, connection_id: String, compression:CompressionPreference): # Added connection_id
 	if _is_connected or _connection_requested:
-		print("SpacetimeDBConnection: Already connected or connecting.")
+		print_log("SpacetimeDBConnection: Already connected or connecting.")
 		return
 
 	if _token.is_empty():
-		printerr("SpacetimeDBConnection: Cannot connect without auth token.")
+		print_log("SpacetimeDBConnection: Cannot connect without auth token.")
 		return
 
 	if connection_id.is_empty():
@@ -65,7 +71,7 @@ func connect_to_database(base_url: String, database_name: String, connection_id:
 
 	_target_url = ws_url_base + query_params
 
-	print("SpacetimeDBConnection: Attempting to connect to: ", _target_url)
+	print_log("SpacetimeDBConnection: Attempting to connect to: " + _target_url)
 
 	var auth_header := "Authorization: Bearer " + _token
 	# --- Remove Compression Header ---
@@ -79,13 +85,13 @@ func connect_to_database(base_url: String, database_name: String, connection_id:
 		printerr("SpacetimeDBConnection: Error initiating connection: ", err)
 		emit_signal("connection_error", err, "Failed to initiate connection")
 	else:
-		print("SpacetimeDBConnection: Connection initiated.")
+		print_log("SpacetimeDBConnection: Connection initiated.")
 		_connection_requested = true
 		set_process(true)
 
 func disconnect_from_server(code: int = 1000, reason: String = "Client initiated disconnect"):
 	if _websocket.get_ready_state() != WebSocketPeer.STATE_CLOSED:
-		print("SpacetimeDBConnection: Closing connection...")
+		print_log("SpacetimeDBConnection: Closing connection...")
 		_websocket.close(code, reason)
 	_is_connected = false
 	_connection_requested = false
@@ -123,7 +129,7 @@ func _process(delta: float) -> void:
 	match state:
 		WebSocketPeer.STATE_OPEN:
 			if not _is_connected:
-				print("SpacetimeDBConnection: Connection established.")
+				print_log("SpacetimeDBConnection: Connection established.")
 				_is_connected = true
 				_connection_requested = false
 				emit_signal("connected")
@@ -150,7 +156,7 @@ func _process(delta: float) -> void:
 					printerr("SpacetimeDBConnection: Connection closed unexpectedly.")
 					emit_signal("connection_error", code, "Abnormal closure")
 				else:
-					print("SpacetimeDBConnection: Connection closed (Code: %d, Reason: %s)" % [code, reason])
+					print_log("SpacetimeDBConnection: Connection closed (Code: %d, Reason: %s)" % [code, reason])
 					emit_signal("disconnected") # Normal closure signal
 
 			_is_connected = false
