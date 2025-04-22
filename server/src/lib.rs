@@ -1,6 +1,7 @@
 pub mod main_types;
 
-use main_types::vectors::{Vector2, Vector3};
+use main_types::lobby::{assign_user_to_lobby, user_disconnected};
+use main_types::vectors::{get_random_position, Vector2, Vector3};
 
 use spacetimedb::{
     rand::{seq::SliceRandom, Rng},
@@ -15,12 +16,14 @@ pub struct User {
     identity: Identity,
     name: String,
     online: bool,
+    lobby_id: u64,
 }
 
 #[table(name = user_data, public)]
 pub struct UserData {
     #[primary_key]
     identity: Identity,
+    lobby_id: u64,
     last_position: Vector3,
     direction: Vector2,
     player_speed: f32,
@@ -37,69 +40,19 @@ pub struct Message {
     text: String,
 }
 
-#[reducer]
-/// Clients invoke this reducer to set their user names.
-pub fn set_name(ctx: &ReducerContext, name: String) -> Result<(), String> {
-    let new_name = validate_name(name)?;
-    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        ctx.db.user().identity().update(User {
-            name: new_name,
-            ..user
-        });
-        Ok(())
-    } else {
-        Err("Cannot set name for unknown user".to_string())
-    }
-}
-
-/// Takes a name and checks if it's acceptable as a user's name.
-fn validate_name(name: String) -> Result<String, String> {
-    if name.is_empty() {
-        Err("Names must not be empty".to_string())
-    } else {
-        Ok(name)
-    }
-}
-
-#[reducer]
-/// Clients invoke this reducer to send messages.
-pub fn send_message(ctx: &ReducerContext, text: String) -> Result<(), String> {
-    let text = validate_message(text)?;
-    log::info!("{}", text);
-
-    ctx.db.message().insert(Message {
-        sender: ctx.sender,
-        text,
-        sent: ctx.timestamp,
-        message_id: 0,
-    });
-
-    Ok(())
-}
-
-/// Takes a message's text and checks if it's acceptable to send.
-fn validate_message(text: String) -> Result<String, String> {
-    if text.is_empty() {
-        Err("Messages must not be empty".to_string())
-    } else {
-        Ok(text)
-    }
-}
-
 #[reducer(client_connected)]
 // Called when a client connects to the SpacetimeDB
 pub fn client_connected(ctx: &ReducerContext) {
     if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        let name = user.name.clone();
-        ctx.db.user().identity().update(User {
-            online: true,
-            ..user
-        });
+        //let name = user.name.clone();
+
         if let Some(connection_id) = ctx.connection_id {
             log::info!("ConnectionID : {}", connection_id);
         }
 
-        log::info!("User {} : online", name);
+        if user.lobby_id == 0 {
+            assign_user_to_lobby(ctx, ctx.sender);
+        }
     } else {
         let new_name = get_random_name(&ctx);
         let pos = get_random_position(&ctx);
@@ -108,10 +61,12 @@ pub fn client_connected(ctx: &ReducerContext) {
             name: new_name.clone(),
             identity: ctx.sender,
             online: true,
+            lobby_id: 0,
         });
 
         ctx.db.user_data().insert(UserData {
             identity: ctx.sender,
+            lobby_id: 0,
             last_position: pos,
             player_speed: PLAYER_SPEED,
             direction: Vector2 { x: 0.0, y: 0.0 },
@@ -122,7 +77,46 @@ pub fn client_connected(ctx: &ReducerContext) {
             log::info!("ConnectionID : {}", connection_id);
         }
 
-        log::info!("User {} : online", new_name);
+        log::info!("New user {} : online", new_name);
+
+        assign_user_to_lobby(ctx, ctx.sender);
+    }
+}
+
+#[reducer(client_disconnected)]
+// Called when a client disconnects from SpacetimeDB
+pub fn client_disconnected(ctx: &ReducerContext) {
+    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
+        let new_name = user.name.clone();
+        let lobby_id = user.lobby_id.clone();
+
+        ctx.db.user().identity().update(User {
+            online: false,
+            lobby_id: 0,
+            ..user
+        });
+        log::info!("User {} : offline", new_name);
+
+        if let Some(mut user_data) = ctx.db.user_data().identity().find(ctx.sender) {
+            user_data.lobby_id = 0;
+            ctx.db.user_data().identity().update(user_data);
+            log::info!(
+                "Reset UserData lobby_id for disconnected user {:?}",
+                ctx.sender
+            );
+        } else {
+            log::warn!("UserData not found for disconnecting user {:?}", ctx.sender);
+        }
+
+        if lobby_id != 0 {
+            user_disconnected(&ctx, lobby_id);
+        }
+    } else {
+        // This branch should be unreachable
+        log::warn!(
+            "Disconnect event for unknown user with identity {:?}",
+            ctx.sender
+        );
     }
 }
 
@@ -134,14 +128,6 @@ pub fn get_random_name(ctx: &ReducerContext) -> String {
     } else {
         return String::from("Popa");
     }
-}
-
-pub fn get_random_position(ctx: &ReducerContext) -> Vector3 {
-    let x = ctx.rng().gen_range(-10.0..10.0);
-    let y = 1.0;
-    let z = ctx.rng().gen_range(-10.0..10.0);
-
-    Vector3::new(x, y, z)
 }
 
 #[reducer]
@@ -189,26 +175,6 @@ pub fn move_user(ctx: &ReducerContext, new_input: Vector2) -> Result<(), String>
         Ok(())
     } else {
         Err(format!("User not found!"))
-    }
-}
-
-#[reducer(client_disconnected)]
-// Called when a client disconnects from SpacetimeDB
-pub fn client_disconnected(ctx: &ReducerContext) {
-    if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        let new_name = user.name.clone();
-        ctx.db.user().identity().update(User {
-            online: false,
-            ..user
-        });
-        log::info!("User {} : offline", new_name);
-    } else {
-        // This branch should be unreachable,
-        // as it doesn't make sense for a client to disconnect without connecting first.
-        log::warn!(
-            "Disconnect event for unknown user with identity {:?}",
-            ctx.sender
-        );
     }
 }
 

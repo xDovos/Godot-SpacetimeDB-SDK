@@ -224,7 +224,6 @@ func subscribe(queries: PackedStringArray) -> int:
 		"query_strings": queries,
 		"request_id": request_id
 	}
-
 	var client_message = { "Subscribe": subscribe_payload }
 	var json_string := JSON.stringify(client_message)
 
@@ -249,6 +248,7 @@ func get_properly_formatting(args: Dictionary) -> Dictionary:
 		match typeof(args[i]):
 			TYPE_VECTOR2 : args[i] = [args[i].x, args[i].y]
 			TYPE_VECTOR3 : args[i] = [args[i].x, args[i].y, args[i].z]
+			TYPE_PACKED_BYTE_ARRAY: args[i] = PackedByteArray(args[i])
 			_: args[i] = args[i]
 	return args
 	

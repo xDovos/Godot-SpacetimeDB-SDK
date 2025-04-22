@@ -1,4 +1,4 @@
-use spacetimedb::SpacetimeType;
+use spacetimedb::{rand::Rng, ReducerContext, SpacetimeType};
 
 #[derive(SpacetimeType, Debug, Clone, Copy)]
 pub struct Vector2 {
@@ -11,6 +11,14 @@ pub struct Vector3 {
     pub x: f32,
     pub y: f32,
     pub z: f32,
+}
+
+pub fn get_random_position(ctx: &ReducerContext) -> Vector3 {
+    let x = ctx.rng().gen_range(-10.0..10.0);
+    let y = 1.0;
+    let z = ctx.rng().gen_range(-10.0..10.0);
+
+    Vector3::new(x, y, z)
 }
 
 impl std::ops::Add<&Vector2> for Vector2 {

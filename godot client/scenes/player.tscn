@@ -1,24 +1,30 @@
-[gd_scene load_steps=7 format=3 uid="uid://dvenminxkaei3"]
+[gd_scene load_steps=6 format=3 uid="uid://dvenminxkaei3"]
 
 [ext_resource type="Script" uid="uid://tvakv4fnjvt0" path="res://example_code/player.gd" id="1_3vyb7"]
-[ext_resource type="Script" uid="uid://cxtm1a3lvs5kp" path="res://schema/UserData.gd" id="2_qhqgy"]
-[ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_dqkch"]
-
-[sub_resource type="Resource" id="Resource_qlg0r"]
-script = ExtResource("3_dqkch")
-data_to_receive = ExtResource("2_qhqgy")
-metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
+[ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="2_qhqgy"]
+[ext_resource type="Script" uid="uid://cxtm1a3lvs5kp" path="res://schema/UserData.gd" id="3_dqkch"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1bvp3"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_lquwl"]
 
-[node name="CharacterBody3D" type="CharacterBody3D"]
+[node name="CharacterBody3D" type="CharacterBody3D" node_paths=PackedStringArray("receiver")]
 script = ExtResource("1_3vyb7")
-receiver = SubResource("Resource_qlg0r")
+receiver = NodePath("Receiver [UserData]")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_1bvp3")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("CapsuleMesh_lquwl")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+pixel_size = 0.02
+billboard = 1
+text = "Hello world"
+
+[node name="Receiver [UserData]" type="Node" parent="."]
+script = ExtResource("2_qhqgy")
+data_to_receive = ExtResource("3_dqkch")
+metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
