@@ -14,7 +14,6 @@ const PLAYER_SPEED: f32 = 10.0;
 pub struct User {
     #[primary_key]
     identity: Identity,
-    name: String,
     online: bool,
     lobby_id: u64,
 }
@@ -23,6 +22,7 @@ pub struct User {
 pub struct UserData {
     #[primary_key]
     identity: Identity,
+    name: String,
     lobby_id: u64,
     last_position: Vector3,
     direction: Vector2,
@@ -41,11 +41,8 @@ pub struct Message {
 }
 
 #[reducer(client_connected)]
-// Called when a client connects to the SpacetimeDB
 pub fn client_connected(ctx: &ReducerContext) {
     if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        //let name = user.name.clone();
-
         if let Some(connection_id) = ctx.connection_id {
             log::info!("ConnectionID : {}", connection_id);
         }
@@ -58,7 +55,6 @@ pub fn client_connected(ctx: &ReducerContext) {
         let pos = get_random_position(&ctx);
 
         ctx.db.user().insert(User {
-            name: new_name.clone(),
             identity: ctx.sender,
             online: true,
             lobby_id: 0,
@@ -66,6 +62,7 @@ pub fn client_connected(ctx: &ReducerContext) {
 
         ctx.db.user_data().insert(UserData {
             identity: ctx.sender,
+            name: new_name.clone(),
             lobby_id: 0,
             last_position: pos,
             player_speed: PLAYER_SPEED,
@@ -84,10 +81,8 @@ pub fn client_connected(ctx: &ReducerContext) {
 }
 
 #[reducer(client_disconnected)]
-// Called when a client disconnects from SpacetimeDB
 pub fn client_disconnected(ctx: &ReducerContext) {
     if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
-        let new_name = user.name.clone();
         let lobby_id = user.lobby_id.clone();
 
         ctx.db.user().identity().update(User {
@@ -95,14 +90,15 @@ pub fn client_disconnected(ctx: &ReducerContext) {
             lobby_id: 0,
             ..user
         });
-        log::info!("User {} : offline", new_name);
 
         if let Some(mut user_data) = ctx.db.user_data().identity().find(ctx.sender) {
+            let name = user_data.name.clone();
             user_data.lobby_id = 0;
             ctx.db.user_data().identity().update(user_data);
             log::info!(
-                "Reset UserData lobby_id for disconnected user {:?}",
-                ctx.sender
+                "Reset UserData lobby_id for disconnected user {:?}. User {} offline",
+                ctx.sender,
+                name
             );
         } else {
             log::warn!("UserData not found for disconnecting user {:?}", ctx.sender);

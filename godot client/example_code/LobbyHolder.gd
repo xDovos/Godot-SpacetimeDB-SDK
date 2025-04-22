@@ -12,11 +12,11 @@ func _ready() -> void:
 	pass 
 
 func on_leave_lobby(user:User):
-	print("Leave : ", user.name)
+	#print("Leave : ", user.name)
 	pass;
 	
 func on_self_update(user:User):
-	print("In lobby : ", user.name)
+	#print("In lobby : ", user.name)
 	if user.identity == SpacetimeDB.get_local_identity().identity and lobby_id == 0:
 		lobby_id = user.lobby_id
 		print("My lobby : ", lobby_id)

@@ -12,7 +12,7 @@ func _ready() -> void:
 	
 func user_data_received(user_data:UserData):
 	if get_meta("id") != user_data.identity:return
-	$Label3D.text = str(user_data.direction)
+	$Label3D.text = str(user_data.name)
 	global_position = user_data.last_position
 	remote_input = user_data.direction
 	remote_speed = user_data.player_speed

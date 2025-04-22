@@ -2,6 +2,7 @@ extends Resource
 class_name UserData
 
 @export var identity: PackedByteArray
+@export var name: String
 @export var lobby_id:int
 @export var last_position: Vector3
 @export var direction: Vector2
