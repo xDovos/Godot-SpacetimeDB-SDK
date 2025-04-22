@@ -16,11 +16,6 @@ pub fn user_disconnected(ctx: &ReducerContext, lobby_id: u64) {
     if let Some(mut lobby) = ctx.db.lobby().id().find(lobby_id) {
         if lobby.player_count > 0 {
             lobby.player_count -= 1;
-            // log::info!(
-            //     "Lobby {} player count decremented to {} after user {:?} disconnects",
-            //     lobby.id,
-            //     lobby.player_count,
-            // );
             ctx.db.lobby().id().update(lobby);
         } else {
             log::warn!(
@@ -29,15 +24,13 @@ pub fn user_disconnected(ctx: &ReducerContext, lobby_id: u64) {
             );
         }
     } else {
-        // Лобби, в котором числился игрок, не найдено (уже удалено?)
         log::warn!("Lobby {} not found for disconnecting user", lobby_id);
     }
 }
 pub fn assign_user_to_lobby(ctx: &ReducerContext, user_identity: Identity) {
     let mut lobby_to_assign_id: Option<u64> = None;
 
-    // Ищем первое лобби со свободным местом (< MAX_PLAYERS_PER_LOBBY игроков)
-    // Используем filter и next() для более эффективного поиска по player_count
+    //Find lobby when players count < MAX_PLAYERS_PER_LOBBY
     if let Some(lobby) = ctx
         .db
         .lobby()
@@ -75,7 +68,7 @@ pub fn assign_user_to_lobby(ctx: &ReducerContext, user_identity: Identity) {
         }
     }
 
-    // Обновляем lobby_id у пользователя
+    // Update lobby id in user
     if let Some(mut user) = ctx.db.user().identity().find(user_identity) {
         user.lobby_id = assigned_lobby_id;
         ctx.db.user().identity().update(user);
@@ -85,25 +78,23 @@ pub fn assign_user_to_lobby(ctx: &ReducerContext, user_identity: Identity) {
             assigned_lobby_id
         );
         if let Some(mut user_data) = ctx.db.user_data().identity().find(user_identity) {
-            // Находим UserData
-            user_data.lobby_id = assigned_lobby_id; // Устанавливаем ID
-            ctx.db.user_data().identity().update(user_data); // <-- ДОБАВИТЬ ЭТО! Записываем изменения
+            user_data.lobby_id = assigned_lobby_id; // Update lobby id in user
+            ctx.db.user_data().identity().update(user_data); // Update table
             log::info!(
                 "Updated user_data for {:?} lobby_id to {}",
                 user_identity,
                 assigned_lobby_id
             );
         } else {
-            // Этого не должно происходить, если UserData создается в client_connected
+            // This branch should be unreachable
             log::error!(
                 "UserData not found when trying to assign lobby for user {:?}",
                 user_identity
             );
         }
 
-        // Увеличиваем счетчик игроков в лобби, куда назначен игрок
+        // Increase player count in lobby table
         if assigned_lobby_id != 0 {
-            // Если игрок назначен не в "неназначенное" лобби
             if let Some(mut lobby) = ctx.db.lobby().id().find(assigned_lobby_id) {
                 lobby.player_count += 1;
                 log::info!(
@@ -113,7 +104,7 @@ pub fn assign_user_to_lobby(ctx: &ReducerContext, user_identity: Identity) {
                 );
                 ctx.db.lobby().id().update(lobby);
             } else {
-                // Этого также не должно произойти, если assigned_lobby_id != 0
+                // This branch should be unreachable
                 log::error!("Assigned user to lobby {} but lobby not found to increment count for user {:?}", assigned_lobby_id, user_identity);
             }
         }

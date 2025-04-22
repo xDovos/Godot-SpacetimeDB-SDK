@@ -30,16 +30,6 @@ pub struct UserData {
     last_update: Timestamp,
 }
 
-#[table(name = message, public)]
-pub struct Message {
-    #[primary_key]
-    #[auto_inc]
-    message_id: u64,
-    sender: Identity,
-    sent: Timestamp,
-    text: String,
-}
-
 #[reducer(client_connected)]
 pub fn client_connected(ctx: &ReducerContext) {
     if let Some(user) = ctx.db.user().identity().find(ctx.sender) {
@@ -87,13 +77,13 @@ pub fn client_disconnected(ctx: &ReducerContext) {
 
         ctx.db.user().identity().update(User {
             online: false,
-            lobby_id: 0,
+            lobby_id: 0, //remove lobby id when disconnected
             ..user
         });
 
         if let Some(mut user_data) = ctx.db.user_data().identity().find(ctx.sender) {
             let name = user_data.name.clone();
-            user_data.lobby_id = 0;
+            user_data.lobby_id = 0; //remove lobby id from user data when disconnected
             ctx.db.user_data().identity().update(user_data);
             log::info!(
                 "Reset UserData lobby_id for disconnected user {:?}. User {} offline",
@@ -101,10 +91,12 @@ pub fn client_disconnected(ctx: &ReducerContext) {
                 name
             );
         } else {
+            // This branch should be unreachable
             log::warn!("UserData not found for disconnecting user {:?}", ctx.sender);
         }
 
         if lobby_id != 0 {
+            //Decrease lobby players count from lobby table
             user_disconnected(&ctx, lobby_id);
         }
     } else {
@@ -176,5 +168,5 @@ pub fn move_user(ctx: &ReducerContext, new_input: Vector2) -> Result<(), String>
 
 #[spacetimedb::reducer(init)]
 pub fn init(ctx: &ReducerContext) {
-    log::info!("Start Invoke");
+    //log::info!("Start Invoke");
 }

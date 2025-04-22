@@ -8,6 +8,11 @@ var remote_speed:float;
 
 func _ready() -> void:
 	receiver.update.connect(user_data_received)
+	
+	#WARNING Dont to that! Every insert/update have deletes.
+	#Just receive updates
+	#receiver.delete.connect() 
+	
 	set_process(get_meta("is_local"))
 	
 func user_data_received(user_data:UserData):
