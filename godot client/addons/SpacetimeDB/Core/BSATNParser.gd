@@ -328,9 +328,32 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 		# Skip non-storage properties
 		if not (prop.usage & PROPERTY_USAGE_STORAGE):
 			continue
+			
 		var value = null
+		
+		var meta_key = "bsatn_type_" + prop.name
+		
+		#Meta annotation has higher priority
+		if resource.has_meta(meta_key):
+			var bsatn_type : String = resource.get_meta(meta_key)
+			match bsatn_type.to_lower():
+				"u64": value = read_u64_le(temp_spb)
+				"i64": value = read_i64_le(temp_spb)
+				"u32": value = read_u32_le(temp_spb)
+				"i32": value = read_i32_le(temp_spb) 
+				"u16": value = read_u16_le(temp_spb)
+				"i16": value = read_i16_le(temp_spb) 
+				"u8": value = read_u8(temp_spb)
+				"i8": value = read_i8(temp_spb)
+				"identity": value = read_identity(temp_spb)
+				_: push_warning("Unknown type : ", bsatn_type.to_lower());
+				
+		if value != null:
+			resource.set(prop.name, value)
+			continue;
+		#No meta - default type read fallback
 		var prop_type : Variant.Type = prop.type
-
+		#push_warning("No annotation for property : ", prop.name)
 		match prop_type:
 			TYPE_PACKED_BYTE_ARRAY:
 				# Logic for PackedByteArray (Identity, ConnectionId, etc.)
@@ -343,26 +366,7 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 					push_warning("Assuming PackedByteArray property '%s' is an Identity (32 bytes)." % prop.name)
 					value = read_identity(temp_spb)
 			TYPE_INT:
-				# Logic for int using metadata "bsatn_type_..."
-				var meta_key = "bsatn_type_" + prop.name
-				if resource.has_meta(meta_key):
-					var bsatn_type : String = resource.get_meta(meta_key)
-					match bsatn_type.to_lower():
-						"u64": value = read_u64_le(temp_spb)
-						"i64": value = read_i64_le(temp_spb)
-						"u32": value = read_u32_le(temp_spb)
-						"i32": value = read_i32_le(temp_spb) 
-						"u16": value = read_u16_le(temp_spb)
-						"i16": value = read_i16_le(temp_spb) 
-						"u8": value = read_u8(temp_spb)
-						"i8": value = read_i8(temp_spb)    
-						_:
-							_set_error("Unknown BSATN type '%s' in metadata for int property '%s'" % [bsatn_type, prop.name], temp_spb.get_position())
-							return false
-				else:
-					# Default if no metadata for int
-					push_warning("Integer property '%s' in '%s' has no 'bsatn_type_' metadata. Assuming i64 (Timestamp)." % [prop.name, resource.get_script().resource_path])
-					value = read_i64_le(temp_spb)
+				value = read_i64_le(temp_spb)
 
 			TYPE_FLOAT: # <--- Added case for float
 				# Read f32 by default.
@@ -404,7 +408,7 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 
 	# Check if all bytes in the row were consumed
 	if temp_spb.get_position() < temp_spb.get_size():
-		push_warning("Extra %d bytes remaining after parsing resource '%s'" % [temp_spb.get_size() - temp_spb.get_position(), resource.get_script().resource_path])
+		push_error("Extra %d bytes remaining after parsing resource '%s'" % [temp_spb.get_size() - temp_spb.get_position(), resource.get_script().resource_path])
 
 	return true
 # --- Top-Level Message Parsing ---
@@ -432,7 +436,6 @@ func parse_packet(buffer: PackedByteArray) -> Resource:
 	#		return null
 	#	print("DEBUG: GZIP Decompression successful.")
 	
-	##TODO: Compression tag for inserts or whole message?
 	if compression_tag != 0:
 		_set_error("Compression not supported! Compressed messages (tag %d) are not supported yet." % compression_tag, 0)
 		return null

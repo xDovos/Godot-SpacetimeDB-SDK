@@ -12,6 +12,6 @@ class_name UserData
 func _init():
 	set_meta("table_name", "user_data")
 	set_meta("primary_key", "identity")
-	set_meta("bsatn_type_last_update", "i64")
 	set_meta("bsatn_type_lobby_id", "u64")
+	set_meta("bsatn_type_last_update", "i64")
 	pass

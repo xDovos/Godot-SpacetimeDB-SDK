@@ -23,7 +23,7 @@ META_TYPE_MAP = {
 }
 TABLE_REGEX = re.compile(r'#\[table\(name\s*=\s*(?P<name>\w+)(?:,\s*public)?\)\]')
 STRUCT_START_REGEX = re.compile(r'pub\s+struct\s+(?P<struct_name>\w+)\s*\{')
-FIELD_REGEX = re.compile(r'^\s*(?P<field_name>\w+)\s*:\s*(?P<field_type>[\w:]+),?\s*$')
+FIELD_REGEX = re.compile(r'^\s*(?P<field_name>\w+)\s*:\s*(?P<field_type>[\w:<>]+),?\s*$')
 PRIMARY_KEY_REGEX = re.compile(r'#\[primary_key(?:.*)?\]')
 
 # --- Функции ---
