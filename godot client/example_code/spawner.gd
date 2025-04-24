@@ -11,6 +11,7 @@ func _ready() -> void:
 func on_user_offline(user_row:UserData):
 	var player = players.get(user_row.identity)
 	if player == null:return;
+	
 	#print("Now offline: ", user_row.name)
 	player.queue_free()
 	players[user_row.identity] = null

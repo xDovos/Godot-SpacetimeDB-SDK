@@ -1,5 +1,6 @@
 pub mod main_types;
 
+use main_types::color::Color;
 use main_types::lobby::{assign_user_to_lobby, user_disconnected};
 use main_types::vectors::{get_random_position, Vector2, Vector3};
 
@@ -24,6 +25,8 @@ pub struct UserData {
     identity: Identity,
     name: String,
     lobby_id: u64,
+    color: Color,
+    //test_vec: Vec<String>,
     last_position: Vector3,
     direction: Vector2,
     player_speed: f32,
@@ -54,6 +57,7 @@ pub fn client_connected(ctx: &ReducerContext) {
             identity: ctx.sender,
             name: new_name.clone(),
             lobby_id: 0,
+            color: Color::random(&ctx),
             last_position: pos,
             player_speed: PLAYER_SPEED,
             direction: Vector2 { x: 0.0, y: 0.0 },
@@ -119,42 +123,18 @@ pub fn get_random_name(ctx: &ReducerContext) -> String {
 }
 
 #[reducer]
-pub fn move_user(ctx: &ReducerContext, new_input: Vector2) -> Result<(), String> {
+pub fn move_user(
+    ctx: &ReducerContext,
+    new_input: Vector2,
+    global_position: Vector3,
+) -> Result<(), String> {
     let current_time = ctx.timestamp;
 
     if let Some(user) = ctx.db.user_data().identity().find(ctx.sender) {
-        // --- Calculate Time Delta ---
-        let time_since_last_update = current_time
-            .duration_since(user.last_update)
-            .unwrap_or_default();
-        let delta_s = time_since_last_update.as_secs_f32();
-
-        // --- Calculate New Position ---
-        let mut new_pos = user.last_position;
-
-        let prev_dir_len_sq =
-            user.direction.x * user.direction.x + user.direction.y * user.direction.y;
-        if prev_dir_len_sq > 0.001 {
-            new_pos.x += user.direction.x * PLAYER_SPEED * delta_s;
-            new_pos.z += user.direction.y * PLAYER_SPEED * delta_s;
-        }
-
-        // --- Normalize New Direction ---
-        let mut new_dir = new_input;
-        let new_dir_len_sq = new_dir.x * new_dir.x + new_dir.y * new_dir.y;
-
-        if new_dir_len_sq > 0.001 {
-            let len = new_dir_len_sq.sqrt();
-            new_dir.x /= len;
-            new_dir.y /= len;
-        } else {
-            new_dir = Vector2::new(0.0, 0.0);
-        }
-
         // --- Update User State ---
         ctx.db.user_data().identity().update(UserData {
-            last_position: new_pos,
-            direction: new_dir,
+            last_position: global_position,
+            direction: new_input,
             player_speed: PLAYER_SPEED,
             last_update: current_time,
             ..user

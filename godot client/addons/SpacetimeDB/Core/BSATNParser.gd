@@ -346,6 +346,7 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 				"u8": value = read_u8(temp_spb)
 				"i8": value = read_i8(temp_spb)
 				"identity": value = read_identity(temp_spb)
+				"array" : push_error("Array?")
 				_: push_warning("Unknown type : ", bsatn_type.to_lower());
 				
 		if value != null:
@@ -393,7 +394,12 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 				var x = read_f32_le(temp_spb)
 				var y = read_f32_le(temp_spb)
 				if not has_error(): value = Vector2(x, y)
-
+			TYPE_COLOR:
+				var r = read_f32_le(temp_spb)
+				var g = read_f32_le(temp_spb)
+				var b = read_f32_le(temp_spb)
+				var a = read_f32_le(temp_spb)
+				if not has_error(): value = Color(r, g, b, a)
 			_:
 				_set_error("Unsupported property type '%s' for BSATN deserialization of property '%s' in resource '%s'" % [type_string(prop_type), prop.name, resource.get_script().resource_path], temp_spb.get_position())
 				return false

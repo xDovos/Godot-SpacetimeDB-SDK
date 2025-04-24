@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://dvenminxkaei3"]
+[gd_scene load_steps=7 format=3 uid="uid://dvenminxkaei3"]
 
 [ext_resource type="Script" uid="uid://tvakv4fnjvt0" path="res://example_code/player.gd" id="1_3vyb7"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="2_qhqgy"]
@@ -7,6 +7,10 @@
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1bvp3"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_lquwl"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qhqgy"]
+resource_local_to_scene = true
+vertex_color_use_as_albedo = true
 
 [node name="CharacterBody3D" type="CharacterBody3D" node_paths=PackedStringArray("receiver")]
 script = ExtResource("1_3vyb7")
@@ -17,6 +21,7 @@ shape = SubResource("CapsuleShape3D_1bvp3")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource("CapsuleMesh_lquwl")
+surface_material_override/0 = SubResource("StandardMaterial3D_qhqgy")
 
 [node name="Label3D" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
