@@ -262,27 +262,76 @@ func get_properly_formatting(args: Dictionary) -> Dictionary:
 			TYPE_PACKED_BYTE_ARRAY: args[i] = PackedByteArray(args[i])
 			_: args[i] = args[i]
 	return args
+
+#Doesnt work for now
+func subscribe_bin(queries: PackedStringArray) -> int:
+	if not is_connected_db():
+		printerr("SpacetimeDBClient: Cannot subscribe_bin, not connected.")
+		return -1 # Indicate error
+
+	# 1. Generate a request ID
+	var request_id := randi() & 0xFFFFFFFF # Ensure positive u32 range
+
+	# 2. Create the correct payload Resource
+	var payload_data := SubscribeMultiData.new(queries, request_id)
+
+	# 3. Serialize the complete ClientMessage using the universal function
+	var message_bytes := _serializer.serialize_client_message(
+		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_SUBSCRIBE_MULTI,
+		payload_data # Передаем созданный ресурс
+	)
+
+	if _serializer.has_error():
+		printerr("SpacetimeDBClient: Failed to serialize SubscribeMulti message: %s" % _serializer.get_last_error())
+		return -1
+
+	# 4. Send the binary message via WebSocket
+	if _connection and _connection._websocket:
+		# Используем put_packet для бинарных данных
+		var err := _connection._websocket.put_packet(message_bytes)
+		if err != OK:
+			printerr("SpacetimeDBClient: Error sending SubscribeMulti BSATN message: %s" % error_string(err))
+			return -1 # Indicate error
+		else:
+			print_log("SpacetimeDBClient: SubscribeMulti request sent successfully (BSATN), Req ID: %d" % request_id)
+			return request_id # Return the ID on success
+	else:
+		printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
+		return -1
+
 	
-func call_reducer_bin(reducer_name: String, args: Array):
+func call_reducer(reducer_name: String, args: Array) -> int:
 	if not is_connected_db():
 		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
 		return -1 # Indicate error
 		
-	var bytes = _serializer.serialize_reducer_call(reducer_name, args, 12345, 0)
+	# Generate a request ID (ensure it's u32 range if needed, but randi is fine for now)
+	var request_id := randi() & 0xFFFFFFFF # Ensure positive u32 range
 	
-	# Send the JSON string as text over the WebSocket
+	var args_bytes = _serializer._serialize_arguments(args)
+	
+	if _serializer.has_error():
+		printerr("Failed to serialize args for %s: %s" % [reducer_name, _serializer.get_last_error()])
+		return -1
+	
+	var call_data := CallReducerData.new(reducer_name, args_bytes, request_id, 0)
+	var message_bytes = _serializer.serialize_client_message(
+		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_CALL_REDUCER,
+		call_data
+		)
+	
 	# Access the internal _websocket peer directly (might need adjustment if _connection API changes)
 	if _connection and _connection._websocket: # Basic check
-		var err = _connection._websocket.send(bytes)
+		var err = _connection._websocket.send(message_bytes)
 		if err != OK:
 			print("SpacetimeDBClient: Error sending CallReducer JSON message: ", err)
 			return -1 # Indicate error
 	else:
 		print("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
-	pass;
+	return request_id
 	
-func call_reducer(reducer_name: String, args: Dictionary, notify_on_done: bool = true) -> int:
+func call_reducer_json(reducer_name: String, args: Dictionary, notify_on_done: bool = true) -> int:
 	if not is_connected_db():
 		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
 		return -1 # Indicate error

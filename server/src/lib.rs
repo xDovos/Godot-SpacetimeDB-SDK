@@ -129,6 +129,16 @@ pub fn get_random_name(ctx: &ReducerContext) -> String {
 }
 
 #[reducer]
+pub fn change_color_random(ctx: &ReducerContext) {
+    if let Some(user) = ctx.db.user_data().identity().find(ctx.sender) {
+        // --- Update User State ---
+        ctx.db.user_data().identity().update(UserData {
+            color: Color::random(ctx),
+            ..user
+        });
+    }
+}
+#[reducer]
 pub fn move_user(
     ctx: &ReducerContext,
     new_input: Vector2,

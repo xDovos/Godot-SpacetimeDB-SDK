@@ -276,15 +276,17 @@ func _get_specific_bsatn_writer(resource: Resource, meta_key: String) -> Callabl
 # Write specific Variant types to the internal buffer (_spb).
 
 func _write_property_packed_byte_array(value: PackedByteArray) -> void:
-	# This is called only if no specific metadata (like 'identity') was found.
-	# How should generic PackedByteArray be handled? Length prefixed? Fixed size?
-	# For now, assume it's an error or needs specific handling via metadata.
-	# If it represented Vec<u8>, it would need length prefix.
-	_set_error("Cannot serialize generic PackedByteArray property without 'bsatn_type' metadata (e.g., 'identity').")
-	# OR: Implement default behavior, e.g., length-prefixed bytes:
-	# if value == null: value = PackedByteArray()
-	# write_u32_le(value.size())
-	# write_bytes(value)
+	# Note: This function is called ONLY if specific metadata (like 'identity')
+	# was NOT found by _get_property_writer -> _get_specific_bsatn_writer.
+	# Therefore, we implement the default behavior here, which is length-prefixed bytes.
+
+	if value == null:
+		push_warning("Serializing null PackedByteArray property as empty Vec<u8>.")
+		value = PackedByteArray()
+
+	# Default behavior: Write as Vec<u8> (u32 length + bytes)
+	write_u32_le(value.size())
+	write_bytes(value)
 
 func _write_property_int(value: int) -> void:
 	# Default integer type is i64. Metadata handles overrides.
@@ -399,6 +401,89 @@ func _write_quaternion_element(value: Quaternion) -> void: _write_property_quate
 func _write_identity_element(value: PackedByteArray) -> void: write_identity(value)
 # Add other element writers as needed (u8, i32, etc.)
 
+func serialize_client_message(variant_tag: int, payload_resource: Resource) -> PackedByteArray:
+	clear_error() # Start clean for this message
+	_spb.data_array = PackedByteArray() # Reset main buffer
+	_spb.seek(0)
+
+	# 1. Write the SumType variant tag
+	write_u8(variant_tag)
+	if has_error(): return PackedByteArray()
+
+	# 2. Serialize the payload resource fields *into the current buffer*
+	if not _serialize_resource_fields(payload_resource):
+		# Error should be set by _serialize_resource_fields
+		if not has_error(): # Ensure error is set if helper somehow didn't
+			_set_error("Failed to serialize payload resource for tag %d" % variant_tag)
+		return PackedByteArray()
+
+	if has_error(): # Double check after serialization
+		return PackedByteArray()
+
+	return _spb.data_array
+
+# Serializes the fields of a Resource instance into the *current* _spb.
+# Does NOT write a message tag or clear the buffer beforehand.
+# Returns true on success, false on failure.
+func _serialize_resource_fields(resource: Resource) -> bool:
+	# DO NOT clear error or reset _spb here.
+
+	if not resource or not resource.get_script():
+		_set_error("Cannot serialize fields of null or scriptless resource")
+		return false
+
+	var properties: Array = resource.get_script().get_script_property_list()
+
+	for prop in properties:
+		if not (prop.usage & PROPERTY_USAGE_STORAGE):
+			continue # Skip non-serialized properties
+
+		var prop_name: StringName = prop.name
+		var prop_type: Variant.Type = prop.type
+		var value = resource.get(prop_name) # Get current value from resource
+
+		# 1. Get the appropriate writer function
+		var writer_callable: Callable = _get_property_writer(resource, prop)
+
+		if not writer_callable.is_valid():
+			# Error already set by _get_property_writer
+			return false # Stop serialization on unsupported type
+
+		# 2. Call the writer function with the value
+		#    Need to handle how arguments are passed to writers consistently
+		#    Let's assume writers called via this path only need the value.
+		#    Array writer (_write_property_array) needs special handling if called from here.
+		#    It might be simpler to have _write_property_array ONLY take the value,
+		#    and resolve its element writer internally or assume it's pre-resolved?
+		#    Let's stick to the current _write_property_array signature for now,
+		#    but it's not used directly when serializing resource fields here.
+		#    TODO: Review if _write_property_array needs adjustment if resource fields can be arrays.
+
+		if prop_type == TYPE_ARRAY:
+			# How should arrays be written when they are fields of a resource payload?
+			# We need the element writer. We can reuse the logic from _write_property_array
+			var element_writer_func: Callable = _get_array_element_writer(resource, prop)
+			if not element_writer_func.is_valid():
+				return false # Error set by getter
+			write_vec(value, element_writer_func) # Call write_vec directly
+		elif writer_callable.is_valid():
+			# For non-array types, call the simple writer
+			writer_callable.call(value)
+		else:
+			# This case should ideally not be reached if _get_property_writer works correctly
+			_set_error("Internal error: No writer found for property '%s' type %s" % [prop_name, type_string(prop_type)])
+			return false
+
+
+		# 3. Check for errors after attempting to write
+		if has_error():
+			# Error should have been set by the writer function
+			# Add context if missing
+			if not _last_error.contains(str(prop_name)):
+				_set_error("Failed writing value for property '%s'. Cause: %s" % [prop_name, get_last_error()])
+			return false # Stop serialization
+
+	return true # Success
 # Serializes a reducer call into the standard ClientMessage format.
 # Matches the C# CallReducer structure for field order AFTER the variant tag.
 func serialize_reducer_call(reducer_name: String, args_array: Array, request_id: int, flags: int) -> PackedByteArray:
@@ -415,9 +500,7 @@ func serialize_reducer_call(reducer_name: String, args_array: Array, request_id:
 
 	# --- Write the ClientMessage structure for CallReducer ---
 	# a) Write the overall message type tag (discriminant for the SumType)
-	#    ИЗМЕНЕНИЕ ЗДЕСЬ: Используем правильный тег 0x00
-	write_u8(CLIENT_MSG_VARIANT_TAG_CALL_REDUCER) # <-- ИЗМЕНЕНО с 0x01 на 0x00
-
+	write_u8(CLIENT_MSG_VARIANT_TAG_CALL_REDUCER)
 	# b) Write the fields corresponding to the CallReducer structure itself
 	write_string_with_u32_len(reducer_name) # Reducer (string)
 	write_u32_le(args_bytes.size())           # Length prefix for Args (List<byte> -> Vec<u8>)
@@ -432,23 +515,32 @@ func serialize_reducer_call(reducer_name: String, args_array: Array, request_id:
 	return _spb.data_array
 
 	
+# Internal helper to serialize an array of arguments into a single PackedByteArray block.
+# Used to prepare the 'args' field for CallReducerData.
+# Returns the bytes, or empty PackedByteArray on error (and sets error).
 func _serialize_arguments(args_array: Array) -> PackedByteArray:
-	# ... (код без изменений) ...
-	var args_spb := StreamPeerBuffer.new()
+	var args_spb := StreamPeerBuffer.new() # Temporary buffer for args
 	args_spb.big_endian = false
-	var original_main_spb := _spb
-	_spb = args_spb
 
+	var original_main_spb := _spb # Store the main buffer reference
+	_spb = args_spb             # Temporarily redirect primitive writes to args_spb
+
+	# --- Serialization Loop ---
 	for i in range(args_array.size()):
 		var arg_value = args_array[i]
-		if not _write_argument(arg_value):
-			push_error("Failed to serialize argument %d for reducer call." % i)
-			_spb = original_main_spb
+		if not _write_argument(arg_value): # Write argument to the *current* _spb (which is args_spb)
+			push_error("Failed to serialize argument %d for reducer call." % i) # Add context
+			_spb = original_main_spb # Restore original buffer before returning
+			# _write_argument should have set _last_error
 			return PackedByteArray()
+	# --- End Loop ---
 
-	_spb = original_main_spb
-	if has_error(): return PackedByteArray()
-	return args_spb.data_array
+	_spb = original_main_spb # IMPORTANT: Restore the main buffer reference
+
+	if has_error(): # Check if any error occurred during the loop
+		return PackedByteArray()
+
+	return args_spb.data_array # Return the bytes accumulated in the temp args buffer
 
 # Internal helper to write a single argument value to the *current* _spb.
 # Returns true on success, false on failure (and sets _last_error).
