@@ -30,12 +30,13 @@ func _process(delta: float) -> void:
 	if last_local_input == input_dir:
 		return;
 	last_local_input = input_dir
-	var id = SpacetimeDB.call_reducer(
-		"move_user", {
-			"new_input": input_dir,
-			"global_position" : global_position
-			}
-		)
+	SpacetimeDB.call_reducer_bin("move_user", [input_dir, global_position])
+	#var id = SpacetimeDB.call_reducer(
+	#	"move_user", {
+	#		"new_input": input_dir,
+	#		"global_position" : global_position
+	#		}
+	#	)
 	pass;
 	
 func _physics_process(delta: float) -> void:

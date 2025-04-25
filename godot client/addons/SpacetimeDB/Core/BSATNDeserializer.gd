@@ -1,4 +1,4 @@
-class_name BSATNParser extends RefCounted
+class_name BSATNDeserializer extends RefCounted
 
 # --- Constants ---
 const MAX_STRING_LEN := 4 * 1024 * 1024 # 4 MiB limit for strings

@@ -13,7 +13,8 @@ class_name SpacetimeDBClient extends Node
 
 # --- Components ---
 var _connection: SpacetimeDBConnection
-var _parser: BSATNParser
+var _deserializer: BSATNDeserializer
+var _serializer: BSATNSerializer
 var _local_db: LocalDatabase
 var _rest_api: SpacetimeDBRestAPI # Optional, for token/REST calls
 var _local_identity:IdentityTokenData
@@ -53,10 +54,11 @@ func initialize_and_connect():
 	print_log("SpacetimeDBClient: Initializing...")
 
 	# 1. Initialize Parser
-	_parser = BSATNParser.new(schema_path)
+	_deserializer = BSATNDeserializer.new(schema_path)
+	_serializer = BSATNSerializer.new()
 
 	# 2. Initialize Local Database
-	_local_db = LocalDatabase.new(_parser._possible_row_schemas) # Pass loaded schemas
+	_local_db = LocalDatabase.new(_deserializer._possible_row_schemas) # Pass loaded schemas
 	# Connect to LocalDatabase signals to re-emit them
 	_local_db.row_inserted.connect(func(tn, r): row_inserted.emit(tn, r))
 	_local_db.row_updated.connect(func(tn, r): row_updated.emit(tn, r))
@@ -143,12 +145,12 @@ func _save_token(token_to_save: String):
 # --- WebSocket Message Handling ---
 
 func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
-	if not _parser: return # Should not happen if initialized
+	if not _deserializer: return # Should not happen if initialized
 
-	var message_resource: Resource = _parser.parse_packet(bsatn_bytes)
+	var message_resource: Resource = _deserializer.parse_packet(bsatn_bytes)
 
-	if _parser.has_error():
-		printerr("SpacetimeDBClient: Failed to parse BSATN packet: ", _parser.get_last_error())
+	if _deserializer.has_error():
+		printerr("SpacetimeDBClient: Failed to parse BSATN packet: ", _deserializer.get_last_error())
 		return
 
 	if message_resource == null:
@@ -260,6 +262,25 @@ func get_properly_formatting(args: Dictionary) -> Dictionary:
 			TYPE_PACKED_BYTE_ARRAY: args[i] = PackedByteArray(args[i])
 			_: args[i] = args[i]
 	return args
+	
+func call_reducer_bin(reducer_name: String, args: Array):
+	if not is_connected_db():
+		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
+		return -1 # Indicate error
+		
+	var bytes = _serializer.serialize_reducer_call(reducer_name, args, 12345, 0)
+	
+	# Send the JSON string as text over the WebSocket
+	# Access the internal _websocket peer directly (might need adjustment if _connection API changes)
+	if _connection and _connection._websocket: # Basic check
+		var err = _connection._websocket.send(bytes)
+		if err != OK:
+			print("SpacetimeDBClient: Error sending CallReducer JSON message: ", err)
+			return -1 # Indicate error
+	else:
+		print("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
+		return -1
+	pass;
 	
 func call_reducer(reducer_name: String, args: Dictionary, notify_on_done: bool = true) -> int:
 	if not is_connected_db():
