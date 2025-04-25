@@ -543,8 +543,7 @@ func _get_array_element_reader(resource: Resource, prop: Dictionary) -> Callable
 
 	# Check for specific element type override first (e.g., for int/float subtypes)
 	
-	#WARNING I Will change this key in future
-	var element_meta_key := "bsatn_vec_element_type_" + prop_name
+	var element_meta_key := "bsatn_type_" + prop_name
 	var specific_element_reader := _get_specific_bsatn_reader(resource, element_meta_key)
 	if specific_element_reader.is_valid():
 		return specific_element_reader
