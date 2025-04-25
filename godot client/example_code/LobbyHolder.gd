@@ -1,7 +1,6 @@
 extends Node
 
 @export var receiver:RowReceiver
-var query = []
 var users = {}
 var lobby_id:int = 0
 
@@ -12,7 +11,7 @@ func _ready() -> void:
 	pass 
 
 func on_leave_lobby(user:User):
-	#print("Leave : ", user.name)
+	print("Leave : ", user.identity.hex_encode())
 	pass;
 	
 func on_self_update(user:User):

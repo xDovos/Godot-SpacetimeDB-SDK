@@ -20,7 +20,8 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		#Reducer without args
-		var id = SpacetimeDB.call_reducer("change_color_random", [])
+		#var id = 
+		SpacetimeDB.call_reducer("change_color_random")
 	
 func user_data_received(user_data:UserData):
 	if get_meta("id") != user_data.identity:return
@@ -36,7 +37,8 @@ func _process(delta: float) -> void:
 	if last_local_input == input_dir:
 		return;
 	last_local_input = input_dir
-	var id = SpacetimeDB.call_reducer("move_user", [input_dir, global_position])
+	#var id = 
+	SpacetimeDB.call_reducer("move_user", [input_dir, global_position])
 	pass;
 	
 func _physics_process(delta: float) -> void:

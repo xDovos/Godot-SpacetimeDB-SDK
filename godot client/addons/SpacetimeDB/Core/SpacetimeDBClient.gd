@@ -10,7 +10,7 @@ class_name SpacetimeDBClient extends Node
 @export var one_time_token:bool = false
 @export var compression:SpacetimeDBConnection.CompressionPreference;
 @export var debug_mode:bool = true;
-
+@export var current_subscriptions:Dictionary[int, PackedStringArray]
 # --- Components ---
 var _connection: SpacetimeDBConnection
 var _deserializer: BSATNDeserializer
@@ -88,7 +88,6 @@ func initialize_and_connect():
 	_load_token_or_request()
 
 func _load_token_or_request():
-	
 	if one_time_token == false:
 	# Try loading saved token
 		if FileAccess.file_exists(token_save_path):
@@ -221,8 +220,9 @@ func get_local_database() -> LocalDatabase:
 	
 func get_local_identity() -> IdentityTokenData:
 	return _local_identity
-	
-func subscribe(queries: PackedStringArray) -> int:
+
+#WARNING Can be deprecated
+func subscribe_json(queries: PackedStringArray) -> int:
 	if not is_connected_db():
 		printerr("SpacetimeDBClient: Cannot subscribe, not connected.")
 		return -1 # Indicate error
@@ -263,22 +263,21 @@ func get_properly_formatting(args: Dictionary) -> Dictionary:
 			_: args[i] = args[i]
 	return args
 
-#Doesnt work for now
-func subscribe_bin(queries: PackedStringArray) -> int:
+
+func subscribe(queries: PackedStringArray) -> int:
 	if not is_connected_db():
 		printerr("SpacetimeDBClient: Cannot subscribe_bin, not connected.")
 		return -1 # Indicate error
 
 	# 1. Generate a request ID
 	var request_id := randi() & 0xFFFFFFFF # Ensure positive u32 range
-
 	# 2. Create the correct payload Resource
 	var payload_data := SubscribeMultiData.new(queries, request_id)
 
 	# 3. Serialize the complete ClientMessage using the universal function
 	var message_bytes := _serializer.serialize_client_message(
-		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_SUBSCRIBE_MULTI,
-		payload_data # Передаем созданный ресурс
+		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_SUBSCRIBE,
+		payload_data 
 	)
 
 	if _serializer.has_error():
@@ -287,20 +286,51 @@ func subscribe_bin(queries: PackedStringArray) -> int:
 
 	# 4. Send the binary message via WebSocket
 	if _connection and _connection._websocket:
-		# Используем put_packet для бинарных данных
-		var err := _connection._websocket.put_packet(message_bytes)
+		var err := _connection._websocket.send(message_bytes)
 		if err != OK:
 			printerr("SpacetimeDBClient: Error sending SubscribeMulti BSATN message: %s" % error_string(err))
 			return -1 # Indicate error
 		else:
 			print_log("SpacetimeDBClient: SubscribeMulti request sent successfully (BSATN), Req ID: %d" % request_id)
+			current_subscriptions[request_id] = queries
 			return request_id # Return the ID on success
 	else:
 		printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
 
+#WARNING Doesnt work for now
+func unsubscribe(id:int) -> bool:
+	if not is_connected_db():
+		printerr("SpacetimeDBClient: Cannot subscribe_bin, not connected.")
+		return false # Indicate error
+		
+	var payload_data := UnsubscribeMultiData.new(id)
 	
-func call_reducer(reducer_name: String, args: Array) -> int:
+	var message_bytes := _serializer.serialize_client_message(
+		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_UNSUBSCRIBE_MULTI,
+		payload_data 
+	)
+
+	if _serializer.has_error():
+		printerr("SpacetimeDBClient: Failed to serialize SubscribeMulti message: %s" % _serializer.get_last_error())
+		return false
+
+	# 4. Send the binary message via WebSocket
+	if _connection and _connection._websocket:
+		var err := _connection._websocket.send(message_bytes)
+		if err != OK:
+			printerr("SpacetimeDBClient: Error sending SubscribeMulti BSATN message: %s" % error_string(err))
+			return false # Indicate error
+		else:
+			print_log("SpacetimeDBClient: UnsubscribeMulti request sent successfully (BSATN), Req ID: %d" % id)
+			current_subscriptions.erase(id)
+			return true # Return the ID on success
+	else:
+		printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
+		return false
+	pass
+	
+func call_reducer(reducer_name: String, args: Array = []) -> int:
 	if not is_connected_db():
 		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
 		return -1 # Indicate error
@@ -330,7 +360,8 @@ func call_reducer(reducer_name: String, args: Array) -> int:
 		print("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
 	return request_id
-	
+
+#WARNING Can be deprecated
 func call_reducer_json(reducer_name: String, args: Dictionary, notify_on_done: bool = true) -> int:
 	if not is_connected_db():
 		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
@@ -376,6 +407,7 @@ func call_reducer_json(reducer_name: String, args: Dictionary, notify_on_done: b
 		
 # Waits asynchronously for a TransactionUpdate with a specific request ID.
 # Returns the TransactionUpdateData or null if timed out.
+
 #WARNING Not sure about this
 func wait_for_reducer_response(request_id_to_match: int, timeout_seconds: float = 10.0) -> TransactionUpdateData:
 	if request_id_to_match < 0:

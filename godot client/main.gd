@@ -37,7 +37,7 @@ func _on_spacetimedb_disconnected():
 	print("Game: Disconnected from SpacetimeDB.")
 
 func _on_spacetimedb_connection_error(code, reason):
-	printerr("Game: SpacetimeDB Connection Error: ", reason)
+	printerr("Game: SpacetimeDB Connection Error: ", reason, " Code: ", code)
 
 func _on_spacetimedb_identity_received(identity_token: IdentityTokenData):
 	print("Game: My Identity: 0x", identity_token.identity.hex_encode())
