@@ -26,7 +26,7 @@ pub struct UserData {
     name: String,
     lobby_id: u64,
     color: Color,
-    //test_vec: Vec<String>,
+    test_vec: Vec<String>,
     last_position: Vector3,
     direction: Vector2,
     player_speed: f32,
@@ -53,11 +53,17 @@ pub fn client_connected(ctx: &ReducerContext) {
             lobby_id: 0,
         });
 
+        let mut test_vec = Vec::new();
+        test_vec.push("one".to_string());
+        test_vec.push("two".to_string());
+        test_vec.push("three".to_string());
+
         ctx.db.user_data().insert(UserData {
             identity: ctx.sender,
             name: new_name.clone(),
             lobby_id: 0,
             color: Color::random(&ctx),
+            test_vec,
             last_position: pos,
             player_speed: PLAYER_SPEED,
             direction: Vector2 { x: 0.0, y: 0.0 },

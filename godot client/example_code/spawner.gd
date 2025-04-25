@@ -19,6 +19,7 @@ func on_user_offline(user_row:UserData):
 	
 func receive_user(user_row:UserData):
 	var player = players.get(user_row.identity)
+	print("HERE! : ", user_row.test_vec)
 	#Spawn online players
 	if player == null:
 		#print("Spawn player ", user_row.identity == SpacetimeDB.get_local_identity().identity)

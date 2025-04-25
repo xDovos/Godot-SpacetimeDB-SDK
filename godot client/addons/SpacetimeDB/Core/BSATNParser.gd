@@ -184,7 +184,6 @@ func read_string_with_u32_len(spb: StreamPeerBuffer) -> String:
 			_set_error("Failed to decode UTF-8 string of length %d (invalid encoding?)" % length, start_pos)
 			# Return "" as per the error condition
 		# else: it might have been a valid empty string, which is unusual but possible
-
 	return str_result
 
 # Reads a 32-byte SpacetimeDB Identity.
@@ -346,7 +345,7 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 				"u8": value = read_u8(temp_spb)
 				"i8": value = read_i8(temp_spb)
 				"identity": value = read_identity(temp_spb)
-				"array" : push_error("Array?")
+				"vec" : push_error("Array?")
 				_: push_warning("Unknown type : ", bsatn_type.to_lower());
 				
 		if value != null:
@@ -400,23 +399,80 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 				var b = read_f32_le(temp_spb)
 				var a = read_f32_le(temp_spb)
 				if not has_error(): value = Color(r, g, b, a)
+			TYPE_ARRAY:
+				if prop.hint == PROPERTY_HINT_TYPE_STRING and ":" in prop.hint_string:
+					var hint_parts = prop.hint_string.split(":", true, 1) #"TypeCode:TypeName"
+					if hint_parts.size() == 2:
+						var element_type : Variant.Type = int(hint_parts[0])
+						var element_reader_func: Callable
+						match element_type:
+							TYPE_STRING:
+								element_reader_func = Callable(self, "_read_string_element")
+							TYPE_INT:
+								var element_meta_key = "bsatn_vec_element_type_" + prop.name
+								if resource.has_meta(element_meta_key):
+									var element_bsatn_type = resource.get_meta(element_meta_key).to_lower()
+									match element_bsatn_type:
+										"u8": element_reader_func = Callable(self, "read_u8")
+										"i8": element_reader_func = Callable(self, "read_i8")
+										"u16": element_reader_func = Callable(self, "read_u16_le")
+										"i16": element_reader_func = Callable(self, "read_i16_le")
+										"u32": element_reader_func = Callable(self, "read_u32_le")
+										"i32": element_reader_func = Callable(self, "_read_i32_element")
+										"u64": element_reader_func = Callable(self, "_read_u64_element")
+										"i64": element_reader_func = Callable(self, "_read_i64_element")
+										"timestamp": element_reader_func = Callable(self, "read_timestamp")
+										_:
+											_set_error("Unsupported 'bsatn_vec_element_type' metadata value '%s' for array '%s'" % [element_bsatn_type, prop.name], temp_spb.get_position())
+								else:
+									push_warning("No 'bsatn_vec_element_type_%s' metadata found for Array[int]. Assuming BSATN type 'i64'." % prop.name)
+									element_reader_func = Callable(self, "_read_i64_element")
+							TYPE_FLOAT:
+								var element_meta_key_float = "bsatn_vec_element_type_" + prop.name
+								if resource.has_meta(element_meta_key_float) and resource.get_meta(element_meta_key_float).to_lower() == "f64":
+									_set_error("Array[float] with bsatn_type f64 not implemented yet for property '%s'." % prop.name, temp_spb.get_position())
+								else:
+									element_reader_func = Callable(self, "_read_f32_element")
+							TYPE_BOOL:
+								element_reader_func = Callable(self, "_read_bool_element")
+							TYPE_VECTOR3:
+								element_reader_func = Callable(self, "_read_vector3_element")
+							TYPE_VECTOR2:
+								element_reader_func = Callable(self, "_read_vector2_element")
+							TYPE_COLOR:
+								element_reader_func = Callable(self, "_read_color_element")
+							_:
+								_set_error("Unsupported element type '%s' in hint_string '%s' for array property '%s'" % [element_type, prop.hint_string, prop.name], temp_spb.get_position())
+								
+						if element_reader_func and not has_error():
+							value = read_vec(temp_spb, element_reader_func)
+					else:
+						_set_error("Could not parse hint_string '%s' for array property '%s'" % [prop.hint_string, prop.name], temp_spb.get_position())
+				else:
+					_set_error("Untyped arrays (Array) or arrays with unrecognized hints are not supported for property '%s'. Use typed arrays like Array[String]." % prop.name, temp_spb.get_position())
 			_:
 				_set_error("Unsupported property type '%s' for BSATN deserialization of property '%s' in resource '%s'" % [type_string(prop_type), prop.name, resource.get_script().resource_path], temp_spb.get_position())
 				return false
-
 		# Check for errors during reading the value
 		if has_error():
 			_set_error("Failed reading value for property '%s' in '%s'. Cause: %s" % [prop.name, resource.get_script().resource_path, get_last_error()], temp_spb.get_position())
 			return false
-
-		# Set the property on the resource instance
-		resource.set(prop.name, value)
+		if prop_type == TYPE_ARRAY and value is Array:
+			var target_array = resource.get(prop.name)
+			if target_array is Array:
+				target_array.assign(value)
+				print("Used target_array.assign()")
+			else:
+				push_error("Property '%s' expected Array type but resource.get returned %s" % [prop.name, typeof(target_array)])
+				resource.set(prop.name, value.duplicate()) 
+		elif value != null:
+			resource[prop.name] = value
 
 	# Check if all bytes in the row were consumed
 	if temp_spb.get_position() < temp_spb.get_size():
 		push_error("Extra %d bytes remaining after parsing resource '%s'" % [temp_spb.get_size() - temp_spb.get_position(), resource.get_script().resource_path])
-
 	return true
+	
 # --- Top-Level Message Parsing ---
 
 # Entry point: Parses the entire byte buffer into a top-level message Resource.
@@ -491,7 +547,52 @@ func read_identity_token_data(spb: StreamPeerBuffer) -> IdentityTokenData:
 
 	if has_error(): return null
 	return resource
+# --- Helper Element Readers for read_vec ---
 
+# Reads a single Vector3 element from the buffer.
+func _read_vector3_element(spb: StreamPeerBuffer) -> Vector3:
+	var x = read_f32_le(spb)
+	var y = read_f32_le(spb)
+	var z = read_f32_le(spb)
+	if has_error(): return Vector3.ZERO # Return default on error during read
+	return Vector3(x, y, z)
+
+# Reads a single Vector2 element from the buffer.
+func _read_vector2_element(spb: StreamPeerBuffer) -> Vector2:
+	var x = read_f32_le(spb)
+	var y = read_f32_le(spb)
+	if has_error(): return Vector2.ZERO
+	return Vector2(x, y)
+
+# Reads a single Color element from the buffer.
+func _read_color_element(spb: StreamPeerBuffer) -> Color:
+	var r = read_f32_le(spb)
+	var g = read_f32_le(spb)
+	var b = read_f32_le(spb)
+	var a = read_f32_le(spb)
+	if has_error(): return Color.BLACK # Return default on error
+	return Color(r, g, b, a)
+
+# Reads a single Identity element (assuming PackedByteArray represents Identity)
+func _read_identity_element(spb: StreamPeerBuffer) -> PackedByteArray:
+	return read_identity(spb) # Reuse existing function
+
+# Reads a single string element
+func _read_string_element(spb: StreamPeerBuffer) -> String:
+	return read_string_with_u32_len(spb)
+
+# Reads a single float element
+func _read_f32_element(spb: StreamPeerBuffer) -> float:
+	return read_f32_le(spb)
+
+# Reads a single bool element
+func _read_bool_element(spb: StreamPeerBuffer) -> bool:
+	return read_bool(spb)
+
+# Reads a single i64 element (as default for int)
+func _read_i64_element(spb: StreamPeerBuffer) -> int:
+	return read_i64_le(spb)
+	
 # Reads data for InitialSubscription message. Returns InitialSubscriptionData resource.
 func read_initial_subscription_data(spb: StreamPeerBuffer) -> InitialSubscriptionData:
 	var resource := InitialSubscriptionData.new()

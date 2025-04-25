@@ -18,6 +18,6 @@ impl Color {
         let g = ctx.rng().gen_range(0.0..1.0);
         let b = ctx.rng().gen_range(0.0..1.0);
 
-        Color::new(r, g, b, 0.0)
+        Color::new(r, g, b, 1.0)
     }
 }
