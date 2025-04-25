@@ -32,4 +32,3 @@ func subscibe_whole_lobby(lobby_to_sub:int, user_identity:PackedByteArray):
 		"SELECT * FROM user_data WHERE lobby_id == " + str(lobby_to_sub),
 	]
 	SpacetimeDB.subscribe(query)
-	

@@ -37,8 +37,6 @@ func _process(delta: float) -> void:
 		return;
 	last_local_input = input_dir
 	var id = SpacetimeDB.call_reducer("move_user", [input_dir, global_position])
-	#await SpacetimeDB.wait_for_reducer_response(id)
-	#print(id)
 	pass;
 	
 func _physics_process(delta: float) -> void:
@@ -48,8 +46,4 @@ func _physics_process(delta: float) -> void:
 	if direction:
 		velocity.x = direction.x * remote_speed
 		velocity.z = direction.z * remote_speed
-	#else:
-	#	velocity.x = move_toward(velocity.x, 0, remote_speed)
-	#	velocity.z = move_toward(velocity.z, 0, remote_speed)
-
 	move_and_slide()

@@ -2,7 +2,7 @@ pub mod main_types;
 
 use main_types::color::Color;
 use main_types::lobby::{assign_user_to_lobby, user_disconnected};
-use main_types::vectors::{get_random_position, Vector2, Vector3};
+use main_types::vectors::{Vector2, Vector3};
 
 use spacetimedb::{
     rand::{seq::SliceRandom, Rng},
@@ -45,8 +45,6 @@ pub fn client_connected(ctx: &ReducerContext) {
         }
     } else {
         let new_name = get_random_name(&ctx);
-        let pos = get_random_position(&ctx);
-
         ctx.db.user().insert(User {
             identity: ctx.sender,
             online: true,
@@ -64,7 +62,7 @@ pub fn client_connected(ctx: &ReducerContext) {
             lobby_id: 0,
             color: Color::random(&ctx),
             test_vec,
-            last_position: pos,
+            last_position: Vector3::get_random_position(&ctx),
             player_speed: PLAYER_SPEED,
             direction: Vector2 { x: 0.0, y: 0.0 },
             last_update: ctx.timestamp,
