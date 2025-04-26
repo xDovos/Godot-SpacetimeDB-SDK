@@ -263,7 +263,8 @@ func _get_specific_bsatn_writer(resource: Resource, meta_key: String) -> Callabl
 			"i16": return Callable(self, "write_i16_le")
 			"u8": return Callable(self, "write_u8")
 			"i8": return Callable(self, "write_i8")
-			"identity": return Callable(self, "write_identity")
+			"identity": return Callable(self, "write_identity") # Writes fixed IDENTITY_SIZE
+			"connection_id": return Callable(self, "_write_connection_id_bytes") # Writes fixed CONNECTION_ID_SIZE
 			"timestamp": return Callable(self, "write_timestamp")
 			"f64": return Callable(self, "write_f64_le") # Handle float override
 			# Add other specific types if needed
@@ -273,20 +274,26 @@ func _get_specific_bsatn_writer(resource: Resource, meta_key: String) -> Callabl
 
 
 # --- Property Type Writers (Called by serialize_resource) ---
-# Write specific Variant types to the internal buffer (_spb).
-
+# Write a PackedByteArray property.
+# Defaults to length-prefixed bytes (Vec<u8>) if no specific metadata type is given.
 func _write_property_packed_byte_array(value: PackedByteArray) -> void:
-	# Note: This function is called ONLY if specific metadata (like 'identity')
-	# was NOT found by _get_property_writer -> _get_specific_bsatn_writer.
-	# Therefore, we implement the default behavior here, which is length-prefixed bytes.
-
-	if value == null:
-		push_warning("Serializing null PackedByteArray property as empty Vec<u8>.")
-		value = PackedByteArray()
-
-	# Default behavior: Write as Vec<u8> (u32 length + bytes)
+	# This function is called ONLY if specific metadata (like 'identity', 'connection_id')
+	# was NOT found by _get_specific_bsatn_writer.
+	# Default behavior: Write as Vec<u8> (u32 length + bytes).
+	if value == null: value = PackedByteArray()
 	write_u32_le(value.size())
 	write_bytes(value)
+
+func _write_connection_id_bytes(value: PackedByteArray) -> void:
+	if value == null or value.size() != CONNECTION_ID_SIZE:
+		_set_error("Invalid ConnectionId value (null or size != %d)" % CONNECTION_ID_SIZE)
+		# Write default/empty? Handle error appropriately.
+		var default_bytes = PackedByteArray()
+		default_bytes.resize(CONNECTION_ID_SIZE)
+		write_bytes(default_bytes)
+		return
+	write_bytes(value)
+
 
 func _write_property_int(value: int) -> void:
 	# Default integer type is i64. Metadata handles overrides.
@@ -338,7 +345,6 @@ func _write_property_array(array_value: Array, resource: Resource, prop: Diction
 
 	# Write the vector using the determined element writer
 	write_vec(array_value, element_writer_func)
-
 
 # Helper to determine the correct writer function for array elements.
 func _get_array_element_writer(resource: Resource, prop: Dictionary) -> Callable:
@@ -570,7 +576,6 @@ func _serialize_arguments(args_array: Array) -> PackedByteArray:
 # Internal helper to write a single argument value to the *current* _spb.
 # Returns true on success, false on failure (and sets _last_error).
 func _write_argument(value) -> bool:
-	# ... (код без изменений) ...
 	var value_type := typeof(value)
 	var writer_callable: Callable
 
@@ -595,23 +600,17 @@ func _write_argument(value) -> bool:
 		TYPE_QUATERNION:
 			writer_callable = Callable(self, "_write_property_quaternion")
 		TYPE_PACKED_BYTE_ARRAY:
-			if value.size() == IDENTITY_SIZE:
-				writer_callable = Callable(self, "write_identity")
-			else:
-				writer_callable = Callable(self, "_write_length_prefixed_bytes")
+			writer_callable = Callable(self, "_write_length_prefixed_bytes")
 		TYPE_ARRAY:
 			_set_error("Cannot serialize Array as direct argument. Pass elements individually or wrap in a Resource.")
 			return false
 		TYPE_OBJECT:
 			if value is Resource:
-				var serializer_for_resource := BSATNSerializer.new()
-				var resource_bytes := serializer_for_resource.serialize_resource(value)
-				if serializer_for_resource.has_error():
-					_set_error("Failed to serialize nested Resource argument. Cause: %s" % serializer_for_resource.get_last_error())
+				if not _serialize_resource_fields(value):
+					_set_error("Failed to serialize nested Resource argument fields. Cause: %s" % get_last_error()) # Добавляем контекст
 					return false
-				write_u32_le(resource_bytes.size())
-				write_bytes(resource_bytes)
-				return not has_error()
+				return true
+			# ------------------------
 			else:
 				_set_error("Cannot serialize non-Resource Object argument of type %s." % value.get_class())
 				return false

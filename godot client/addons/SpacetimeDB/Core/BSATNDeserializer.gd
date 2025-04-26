@@ -426,7 +426,8 @@ func _get_specific_bsatn_reader(resource: Resource, meta_key: String) -> Callabl
 			"i16": return Callable(self, "read_i16_le")
 			"u8": return Callable(self, "read_u8")
 			"i8": return Callable(self, "read_i8")
-			"identity": return Callable(self, "read_identity")
+			"identity": return Callable(self, "read_identity") # Reads fixed IDENTITY_SIZE
+			"connection_id": return Callable(self, "_read_connection_id_bytes") # Reads fixed CONNECTION_ID_SIZE
 			"timestamp": return Callable(self, "read_timestamp")
 			# Add other specific types if needed
 			_:
@@ -463,18 +464,25 @@ func _set_resource_property(resource: Resource, prop_name: StringName, prop_type
 # These methods read specific Variant types. `resource` and `prop` are passed
 # mainly for context needed by array reading.
 
+# Reads a PackedByteArray property based on metadata or defaults to Vec<u8>.
 func _read_property_packed_byte_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> PackedByteArray:
-	# Handle specific named properties expecting different sizes
-	match prop.name:
-		&"identity", &"sender":
-			return read_identity(spb) # Uses IDENTITY_SIZE
-		&"connection_id":
-			return read_bytes(spb, CONNECTION_ID_SIZE)
-		_:
-			# Default assumption or require metadata via _get_specific_bsatn_reader
-			# If no metadata specified 'identity' as default.
-			push_warning("Assuming PackedByteArray property '%s' is an Identity (%d bytes)." % [prop.name, IDENTITY_SIZE])
-			return read_identity(spb)
+	# This function is called ONLY if _get_specific_bsatn_reader did NOT find
+	# specific metadata like 'identity', 'connection_id', etc.
+	# Therefore, the default behavior here MUST be Vec<u8>.
+
+	# Default behavior: Read as Vec<u8> (u32 length + bytes).
+	var start_pos := spb.get_position()
+	var length := read_u32_le(spb)
+	if has_error(): return PackedByteArray()
+
+	const MAX_BYTE_ARRAY_LEN = 16 * 1024 * 1024 # Example: 16 MiB limit
+	if length > MAX_BYTE_ARRAY_LEN:
+		_set_error("PackedByteArray (Vec<u8>) length %d exceeds maximum limit %d for property '%s'" % [length, MAX_BYTE_ARRAY_LEN, prop.name], start_pos)
+		return PackedByteArray()
+	if length == 0:
+		return PackedByteArray() # Valid empty array
+
+	return read_bytes(spb, length)
 
 func _read_property_int(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> int:
 	# Default integer type is i64 as per BSATN common usage for IDs/timestamps
@@ -584,6 +592,7 @@ func _read_vector3_element(spb: StreamPeerBuffer) -> Vector3: return _read_prope
 func _read_vector2_element(spb: StreamPeerBuffer) -> Vector2: return _read_property_vector2(spb, null, {})
 func _read_color_element(spb: StreamPeerBuffer) -> Color: return _read_property_color(spb, null, {})
 func _read_identity_element(spb: StreamPeerBuffer) -> PackedByteArray: return read_identity(spb)
+func _read_connection_id_bytes(spb: StreamPeerBuffer) -> PackedByteArray:return read_bytes(spb, CONNECTION_ID_SIZE)
 func _read_string_element(spb: StreamPeerBuffer) -> String: return read_string_with_u32_len(spb)
 func _read_f32_element(spb: StreamPeerBuffer) -> float: return read_f32_le(spb)
 func _read_f64_element(spb: StreamPeerBuffer) -> float: return read_f64_le(spb) 

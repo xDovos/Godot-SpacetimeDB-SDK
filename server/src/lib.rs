@@ -142,8 +142,15 @@ pub fn get_random_name(ctx: &ReducerContext) -> String {
 }
 
 #[reducer]
-pub fn test_struct(ctx: &ReducerContext, message: Message) {
-    log::info!("{:?}", message);
+pub fn test_struct(
+    ctx: &ReducerContext,
+    message: Message,
+    another_message: Message,
+) -> Result<(), String> {
+    let formatted = format!("{:?}", message);
+    let formatted_second = format!("{:?}", another_message);
+    log::info!("{}, another : {}", formatted, formatted_second);
+    Err(format!("{}, another : {}", formatted, formatted_second))
 }
 
 #[reducer]
