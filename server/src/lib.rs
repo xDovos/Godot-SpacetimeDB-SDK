@@ -4,6 +4,7 @@ use main_types::color::Color;
 use main_types::lobby::{assign_user_to_lobby, user_disconnected};
 use main_types::vectors::{Vector2, Vector3};
 
+use spacetimedb::SpacetimeType;
 use spacetimedb::{
     rand::{seq::SliceRandom, Rng},
     reducer, table, Identity, ReducerContext, Table, Timestamp,
@@ -19,10 +20,19 @@ pub struct User {
     lobby_id: u64,
 }
 
+#[derive(SpacetimeType, Debug)]
+pub struct Message {
+    int_value: u8,
+    string_value: String,
+    int_vec: Vec<u8>,
+    string_vec: Vec<String>,
+}
+
 #[table(name = user_data, public)]
 pub struct UserData {
     #[primary_key]
     identity: Identity,
+    online: bool,
     name: String,
     lobby_id: u64,
     color: Color,
@@ -58,6 +68,7 @@ pub fn client_connected(ctx: &ReducerContext) {
 
         ctx.db.user_data().insert(UserData {
             identity: ctx.sender,
+            online: true,
             name: new_name.clone(),
             lobby_id: 0,
             color: Color::random(&ctx),
@@ -89,10 +100,14 @@ pub fn client_disconnected(ctx: &ReducerContext) {
             ..user
         });
 
-        if let Some(mut user_data) = ctx.db.user_data().identity().find(ctx.sender) {
+        if let Some(user_data) = ctx.db.user_data().identity().find(ctx.sender) {
             let name = user_data.name.clone();
-            user_data.lobby_id = 0; //remove lobby id from user data when disconnected
-            ctx.db.user_data().identity().update(user_data);
+
+            ctx.db.user_data().identity().update(UserData {
+                lobby_id: 0,
+                online: false,
+                ..user_data
+            });
             log::info!(
                 "Reset UserData lobby_id for disconnected user {:?}. User {} offline",
                 ctx.sender,
@@ -124,6 +139,11 @@ pub fn get_random_name(ctx: &ReducerContext) -> String {
     } else {
         return String::from("Popa");
     }
+}
+
+#[reducer]
+pub fn test_struct(ctx: &ReducerContext, message: Message) {
+    log::info!("{:?}", message);
 }
 
 #[reducer]

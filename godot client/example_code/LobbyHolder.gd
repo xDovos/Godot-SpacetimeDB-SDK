@@ -11,6 +11,7 @@ func _ready() -> void:
 	pass 
 
 func on_leave_lobby(user:User):
+	print(user.online)
 	print("Leave : ", user.identity.hex_encode())
 	pass;
 	

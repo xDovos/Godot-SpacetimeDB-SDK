@@ -253,7 +253,8 @@ func subscribe_json(queries: PackedStringArray) -> int:
 	else:
 		printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
-
+		
+#WARNING Can be deprecated
 func get_properly_formatting(args: Dictionary) -> Dictionary:
 	for i in args:
 		match typeof(args[i]):
@@ -330,7 +331,7 @@ func unsubscribe(id:int) -> bool:
 		return false
 	pass
 	
-func call_reducer(reducer_name: String, args: Array = []) -> int:
+func call_reducer_args(reducer_name: String, args: Array = []) -> int:
 	if not is_connected_db():
 		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
 		return -1 # Indicate error
@@ -344,7 +345,7 @@ func call_reducer(reducer_name: String, args: Array = []) -> int:
 		printerr("Failed to serialize args for %s: %s" % [reducer_name, _serializer.get_last_error()])
 		return -1
 	
-	var call_data := CallReducerData.new(reducer_name, args_bytes, request_id, 0)
+	var call_data := CallReducerData.new(reducer_name, args_bytes, request_id, 1)
 	var message_bytes = _serializer.serialize_client_message(
 		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_CALL_REDUCER,
 		call_data
@@ -356,10 +357,56 @@ func call_reducer(reducer_name: String, args: Array = []) -> int:
 		if err != OK:
 			print("SpacetimeDBClient: Error sending CallReducer JSON message: ", err)
 			return -1 # Indicate error
+		else:
+			return request_id
 	else:
 		print("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
 		return -1
-	return request_id
+
+func call_reducer_struct(reducer_name: String, resource_arg: Resource) -> int:
+	if not is_connected_db():
+		printerr("SpacetimeDBClient: Cannot call reducer struct, not connected.")
+		return -1 # Indicate error
+	if not resource_arg:
+		printerr("SpacetimeDBClient: Cannot call reducer struct with a null resource argument.")
+		return -1
+
+	# Generate a request ID
+	var request_id := randi() & 0xFFFFFFFF # Ensure positive u32 range
+	var flags := 0 # Default flags, adjust if needed
+
+	# 1. Serialize the entire resource argument into a single byte block
+	var args_bytes := _serializer._serialize_resource_argument(resource_arg)
+
+	if _serializer.has_error():
+		printerr("Failed to serialize resource argument for %s: %s" % [reducer_name, _serializer.get_last_error()])
+		return -1
+
+	# 2. Create the CallReducerData payload
+	var call_data := CallReducerData.new(reducer_name, args_bytes, request_id, flags)
+
+	# 3. Serialize the complete ClientMessage
+	var message_bytes := _serializer.serialize_client_message(
+		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_CALL_REDUCER,
+		call_data
+	)
+
+	if _serializer.has_error():
+		printerr("Failed to serialize ClientMessage for %s (struct): %s" % [reducer_name, _serializer.get_last_error()])
+		return -1
+
+	# 4. Send the message
+	if _connection and _connection._websocket:
+		var err := _connection._websocket.send(message_bytes)
+		if err != OK:
+			printerr("SpacetimeDBClient: Error sending CallReducer (struct) BSATN message: %s" % error_string(err))
+			return -1
+		else:
+			print_log("SpacetimeDBClient: Reducer call (struct) '%s' sent successfully (BSATN), Req ID: %d" % [reducer_name, request_id])
+			return request_id
+	else:
+		printerr("SpacetimeDBClient: Internal error - WebSocket peer not available in connection.")
+		return -1
 
 #WARNING Can be deprecated
 func call_reducer_json(reducer_name: String, args: Dictionary, notify_on_done: bool = true) -> int:

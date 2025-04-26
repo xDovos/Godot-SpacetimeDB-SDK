@@ -358,7 +358,7 @@ func _get_array_element_writer(resource: Resource, prop: Dictionary) -> Callable
 	var element_type_code: int = int(hint_parts[0])
 
 	# Check for specific element type override first (e.g., for int/float subtypes)
-	var element_meta_key := "bsatn_vec_element_type_" + prop_name
+	var element_meta_key := "bsatn_type_" + prop_name
 	var specific_element_writer := _get_specific_bsatn_writer(resource, element_meta_key)
 	if specific_element_writer.is_valid():
 		return specific_element_writer
@@ -422,6 +422,31 @@ func serialize_client_message(variant_tag: int, payload_resource: Resource) -> P
 
 	return _spb.data_array
 
+func _serialize_resource_argument(resource_arg: Resource) -> PackedByteArray:
+	if not resource_arg:
+		_set_error("Cannot serialize null resource argument.")
+		return PackedByteArray()
+
+	var arg_spb := StreamPeerBuffer.new() # Temporary buffer for this resource
+	arg_spb.big_endian = false
+
+	var original_main_spb := _spb # Store the main buffer reference
+	_spb = arg_spb             # Temporarily redirect writes to arg_spb
+
+	# Serialize the resource's fields into the temporary buffer
+	if not _serialize_resource_fields(resource_arg):
+		# Error is already set by _serialize_resource_fields
+		push_error("Failed to serialize resource argument.") # Add context
+		_spb = original_main_spb # Restore original buffer before returning
+		return PackedByteArray()
+
+	_spb = original_main_spb # IMPORTANT: Restore the main buffer reference
+
+	if has_error(): # Check if any error occurred during serialization
+		return PackedByteArray()
+
+	return arg_spb.data_array
+	
 # Serializes the fields of a Resource instance into the *current* _spb.
 # Does NOT write a message tag or clear the buffer beforehand.
 # Returns true on success, false on failure.

@@ -74,9 +74,7 @@ func connect_to_database(base_url: String, database_name: String, connection_id:
 	print_log("SpacetimeDBConnection: Attempting to connect to: " + _target_url)
 
 	var auth_header := "Authorization: Bearer " + _token
-	# --- Remove Compression Header ---
-	# _websocket.handshake_headers = [auth_header, compression_header] # OLD
-	_websocket.handshake_headers = [auth_header] # ONLY Auth header needed now
+	_websocket.handshake_headers = [auth_header] 
 
 	_websocket.supported_protocols = [BSATN_PROTOCOL]
 
@@ -99,27 +97,7 @@ func disconnect_from_server(code: int = 1000, reason: String = "Client initiated
 
 func is_connected_db() -> bool:
 	return _is_connected
-
-func send_bsatn_message(client_message_resource: Resource):
-	if not _is_connected:
-		printerr("SpacetimeDBConnection: Cannot send message, not connected.")
-		return FAILED
-
-	# TODO: Need a BSATN *Serializer* to convert the Resource back to bytes
-	# For now, this function is a placeholder.
-	printerr("SpacetimeDBConnection: BSATN Serialization not implemented yet!")
-	return FAILED
-	# var bsatn_parser = BSATNParser.new() # Or a dedicated serializer class
-	# var bytes : PackedByteArray = bsatn_parser.serialize_client_message(client_message_resource)
-	# if bsatn_parser.has_error():
-	#	 printerr("SpacetimeDBConnection: Failed to serialize message: ", bsatn_parser.get_last_error())
-	#	 return FAILED
-	# var err = _websocket.send(bytes)
-	# if err != OK:
-	#	 printerr("SpacetimeDBConnection: Error sending BSATN message: ", err)
-	#	 return err
-	# return OK
-
+	
 func _process(delta: float) -> void:
 	if _websocket == null: return
 
