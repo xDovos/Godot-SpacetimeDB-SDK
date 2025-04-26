@@ -16,6 +16,32 @@ func _ready() -> void:
 	
 	set_process(get_meta("is_local"))
 	set_process_input(get_meta("is_local"))
+
+func test_struct():
+	var test_one := Message.new()
+	test_one.int_value = 55
+	test_one.string_value = "Hello from Godot"
+	test_one.int_vec = [1,2,3]
+	test_one.string_vec = ["one", "two", "three"]
+		
+	var test := Message.new()
+	test.int_value = 26
+	test.string_value = "Hello from Godot second"
+	test.int_vec = [3,2,1]
+	test.string_vec = ["Hello", "Elden", "Ring"]
+		
+	var id = SpacetimeDB.call_reducer("test_struct", [test_one, test])
+	var result = await SpacetimeDB.wait_for_reducer_response(id)
+	print(result)
+	pass;
+
+func test_bytes():
+	var image = Image.load_from_file("res://icon.svg")
+	#print(image.data)
+	var id = SpacetimeDB.call_reducer("save_my_bytes", [image.get_data().slice(0, image.get_data_size()/4)])
+	var result = await SpacetimeDB.wait_for_reducer_response(id)
+	print(result)
+	pass;
 	
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -24,21 +50,9 @@ func _input(event: InputEvent) -> void:
 		#var result = await SpacetimeDB.wait_for_reducer_response(id)
 		#print(result)
 	if event.is_action_pressed("ui_accept"):
-		var test_one := Message.new()
-		test_one.int_value = 55
-		test_one.string_value = "Hello from Godot"
-		test_one.int_vec = [1,2,3]
-		test_one.string_vec = ["one", "two", "three"]
+		test_struct()
+		#test_bytes()
 		
-		var test := Message.new()
-		test.int_value = 26
-		test.string_value = "Hello from Godot second"
-		test.int_vec = [3,2,1]
-		test.string_vec = ["Hello", "Elden", "Ring"]
-		
-		var id = SpacetimeDB.call_reducer("test_struct", [test_one, test])
-		var result = await SpacetimeDB.wait_for_reducer_response(id)
-		print(result)
 	
 func user_data_received(user_data:UserData):
 	if get_meta("id") != user_data.identity:return

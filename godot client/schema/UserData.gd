@@ -7,6 +7,7 @@ class_name UserData
 @export var lobby_id:int
 @export var color:Color
 @export var test_vec:Array[String]
+@export var test_bytes_array:PackedByteArray
 @export var last_position: Vector3
 @export var direction: Vector2
 @export var player_speed: float

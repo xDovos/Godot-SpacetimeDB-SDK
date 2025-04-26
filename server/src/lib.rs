@@ -37,6 +37,7 @@ pub struct UserData {
     lobby_id: u64,
     color: Color,
     test_vec: Vec<String>,
+    test_bytes_array: Vec<u8>,
     last_position: Vector3,
     direction: Vector2,
     player_speed: f32,
@@ -73,6 +74,7 @@ pub fn client_connected(ctx: &ReducerContext) {
             lobby_id: 0,
             color: Color::random(&ctx),
             test_vec,
+            test_bytes_array: Vec::new(),
             last_position: Vector3::get_random_position(&ctx),
             player_speed: PLAYER_SPEED,
             direction: Vector2 { x: 0.0, y: 0.0 },
@@ -151,6 +153,16 @@ pub fn test_struct(
     let formatted_second = format!("{:?}", another_message);
     log::info!("{}, another : {}", formatted, formatted_second);
     Err(format!("{}, another : {}", formatted, formatted_second))
+}
+
+#[reducer]
+pub fn save_my_bytes(ctx: &ReducerContext, bytes: Vec<u8>) {
+    if let Some(mut user_data) = ctx.db.user_data().identity().find(ctx.sender) {
+        log::info!("{}", bytes.len());
+        user_data.test_bytes_array = bytes;
+        ctx.db.user_data().identity().update(user_data);
+        log::info!("Writed!");
+    }
 }
 
 #[reducer]
