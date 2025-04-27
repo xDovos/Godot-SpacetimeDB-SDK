@@ -50,7 +50,8 @@ func _input(event: InputEvent) -> void:
 		#var result = await SpacetimeDB.wait_for_reducer_response(id)
 		#print(result)
 	if event.is_action_pressed("ui_accept"):
-		test_struct()
+		SpacetimeDB.unsubscribe(SpacetimeDB.current_subscriptions.keys()[1])
+		#test_struct()
 		#test_bytes()
 		
 	

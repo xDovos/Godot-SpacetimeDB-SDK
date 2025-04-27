@@ -12,8 +12,14 @@ const COMPRESSION_GZIP := 0x02
 
 const SERVER_MSG_INITIAL_SUB := 0x00
 const SERVER_MSG_TRANSACTION_UPDATE := 0x01
-# const SERVER_MSG_TRANSACTION_UPDATE_LIGHT := 0x02 # TODO
+const SERVER_MSG_TRANSACTION_UPDATE_LIGHT := 0x02 
 const SERVER_MSG_IDENTITY_TOKEN := 0x03
+const SERVER_MSG_ONE_OFF_QUERY_RESPONSE := 0x04
+const SERVER_MSG_SUBSCRIBE_APPLIED := 0x05
+const SERVER_MSG_UNSUBSCRIBE_APPLIED := 0x06
+const SERVER_MSG_SUBSCRIPTION_ERROR := 0x07
+const SERVER_MSG_SUBSCRIBE_MULTI_APPLIED := 0x08
+const SERVER_MSG_UNSUBSCRIBE_MULTI_APPLIED := 0x09
 
 const ROW_LIST_FIXED_SIZE := 0
 const ROW_LIST_ROW_OFFSETS := 1
@@ -631,14 +637,28 @@ func parse_packet(buffer: PackedByteArray) -> Resource:
 
 	# 3. Call the specific parser function based on the message type
 	var result_resource: Resource = null
+	#print(msg_type)
 	match msg_type:
-		SERVER_MSG_INITIAL_SUB:
+		SERVER_MSG_INITIAL_SUB: # 1
 			result_resource = _read_initial_subscription_data(spb)
-		SERVER_MSG_TRANSACTION_UPDATE:
+		SERVER_MSG_TRANSACTION_UPDATE: # 2
 			result_resource = _read_transaction_update_data(spb)
-		SERVER_MSG_IDENTITY_TOKEN:
+		SERVER_MSG_IDENTITY_TOKEN: # 3
 			result_resource = _read_identity_token_data(spb)
-		# Add cases for other ServerMessage types
+		SERVER_MSG_ONE_OFF_QUERY_RESPONSE: # 4
+			result_resource = _read_one_off_query_response_data(spb) 
+		SERVER_MSG_SUBSCRIBE_APPLIED: # 5
+			result_resource = _read_subscribe_applied_data(spb) 
+		SERVER_MSG_UNSUBSCRIBE_APPLIED: # 6
+			result_resource = _read_unsubscribe_applied_data(spb) 
+		SERVER_MSG_SUBSCRIPTION_ERROR: # 7
+			result_resource = _read_subscription_error_data(spb)
+			if result_resource.error_message:
+				printerr(result_resource.error_message)
+		SERVER_MSG_SUBSCRIBE_MULTI_APPLIED: # 8
+			result_resource = _read_subscribe_multi_applied_data(spb)
+		SERVER_MSG_UNSUBSCRIBE_MULTI_APPLIED: # 9
+			result_resource = _read_unsubscribe_multi_applied_data(spb)
 		_:
 			_set_error("Unknown server message type: 0x%02X" % msg_type, 1)
 			return null
@@ -658,6 +678,110 @@ func parse_packet(buffer: PackedByteArray) -> Resource:
 # --- Specific Message Data Readers ---
 # These functions parse the data payload for specific ServerMessage types.
 # They should return the corresponding Godot Resource (e.g., InitialSubscriptionData).
+
+# Placeholder - Requires definition of OneOffQueryResponseData resource
+func _read_one_off_query_response_data(spb: StreamPeerBuffer) -> Resource:
+	_set_error("Reader for OneOffQueryResponse (0x04) not implemented.", spb.get_position() -1)
+	return null
+
+# Reads SubscribeApplied message data
+func _read_subscribe_applied_data(spb: StreamPeerBuffer) -> SubscribeAppliedData:
+	var resource := SubscribeAppliedData.new()
+	resource.request_id = read_u32_le(spb)
+	resource.total_host_execution_duration_micros = read_u64_le(spb)
+	resource.query_id = _read_query_id_data(spb)
+	resource.rows = _read_subscribe_rows_data(spb)
+	return null if has_error() else resource
+
+# Reads UnsubscribeApplied message data
+func _read_unsubscribe_applied_data(spb: StreamPeerBuffer) -> UnsubscribeAppliedData:
+	var resource := UnsubscribeAppliedData.new()
+	resource.request_id = read_u32_le(spb)
+	resource.total_host_execution_duration_micros = read_u64_le(spb)
+	resource.query_id = _read_query_id_data(spb)
+	resource.rows = _read_subscribe_rows_data(spb)
+	return null if has_error() else resource
+
+# Reads SubscriptionError message data
+func _read_subscription_error_data(spb: StreamPeerBuffer) -> SubscriptionErrorData:
+	var start_pos = spb.get_position()
+	var dump = spb.data_array.duplicate().slice(start_pos) # DEBUG
+	#print("  Data (hex): ", dump.hex_encode()) # DEBUG
+
+	var resource := SubscriptionErrorData.new()
+
+	# Read total_host_execution_duration_micros (u64)
+	resource.total_host_execution_duration_micros = read_u64_le(spb)
+	if has_error(): return null
+	
+	## FOR OPTION
+	## 00 - SOME
+	## 01 - NONE
+	# Read Option<u32> request_id
+	var req_id_tag = read_u8(spb); if has_error(): return null
+	if req_id_tag == 0: resource.request_id = read_u32_le(spb)
+	else: resource.request_id = -1
+	if has_error(): return null
+	#print("req_id_tag: ", req_id_tag, " ", resource.request_id)
+	
+	var query_id_tag = read_u8(spb); if has_error(): return null
+	if query_id_tag == 0: resource.query_id = read_u32_le(spb)
+	else: resource.query_id = -1
+	if has_error(): return null
+	#print("query_id_tag: ", query_id_tag, " ", resource.query_id)
+	
+	var table_id_tag = read_u8(spb); if has_error(): return null
+	if table_id_tag == 0: # Some(TableId)
+		resource.table_id_resource = _read_table_id_data(spb) 
+		if has_error(): return null
+	elif table_id_tag == 1: 
+		resource.table_id_resource = null 
+	else:
+		_set_error("Invalid tag for Option<TableId>: %d" % table_id_tag, spb.get_position() - 1)
+		return null
+	#print("table_id_tag: ", table_id_tag, " ", resource.table_id_resource)
+	#print("Readed: ", spb.data_array.duplicate().slice(start_pos, spb.get_position()).hex_encode())
+	#print("Next: ", spb.data_array.duplicate().slice(spb.get_position(), spb.get_size()).hex_encode())
+	resource.error_message = read_string_with_u32_len(spb)
+	if has_error(): return null
+	return resource
+
+# Reads SubscribeMultiApplied message data
+func _read_subscribe_multi_applied_data(spb: StreamPeerBuffer) -> SubscribeMultiAppliedData:
+	var resource := SubscribeMultiAppliedData.new()
+	resource.request_id = read_u32_le(spb)
+	resource.total_host_execution_duration_micros = read_u64_le(spb)
+	resource.query_id = _read_query_id_data(spb)
+	resource.database_update = _read_database_update(spb)
+	return null if has_error() else resource
+
+# Reads UnsubscribeMultiApplied message data
+func _read_unsubscribe_multi_applied_data(spb: StreamPeerBuffer) -> UnsubscribeMultiAppliedData:
+	var resource := UnsubscribeMultiAppliedData.new()
+	resource.request_id = read_u32_le(spb)
+	resource.total_host_execution_duration_micros = read_u64_le(spb)
+	resource.query_id = _read_query_id_data(spb)
+	resource.database_update = _read_database_update(spb)
+	return null if has_error() else resource
+
+# Reads QueryId structure (inline)
+func _read_query_id_data(spb: StreamPeerBuffer) -> QueryIdData:
+	var resource := QueryIdData.new()
+	resource.id = read_u32_le(spb) 
+	return null if has_error() else resource
+
+# Reads SubscribeRows structure (inline)
+func _read_subscribe_rows_data(spb: StreamPeerBuffer) -> SubscribeRowsData:
+	var resource := SubscribeRowsData.new()
+	resource.table_id = read_u32_le(spb) # TableId = u32
+	resource.table_name = read_string_with_u32_len(spb)
+	resource.table_rows = _read_table_update(spb)
+	return null if has_error() else resource
+
+# Placeholder reader for OneOffTable (needed by _read_one_off_query_response_data)
+func _read_one_off_table(spb: StreamPeerBuffer) -> Resource:
+	_set_error("Reader for OneOffTable not implemented.", spb.get_position())
+	return null
 
 func _read_identity_token_data(spb: StreamPeerBuffer) -> IdentityTokenData:
 	var resource := IdentityTokenData.new()
@@ -687,6 +811,17 @@ func _read_transaction_update_data(spb: StreamPeerBuffer) -> TransactionUpdateDa
 # --- Sub-Structure Readers ---
 # Readers for nested structures within messages.
 
+func _read_table_id_data(spb: StreamPeerBuffer) -> TableIdData:
+	var resource := TableIdData.new()
+	# print("    Reading TableIdData at pos: ", spb.get_position()) # DEBUG
+	resource.pascal_case = read_string_with_u32_len(spb)
+	if has_error(): return null
+	# print("      Read pascal_case, pos: ", spb.get_position()) # DEBUG
+	resource.snake_case = read_string_with_u32_len(spb)
+	if has_error(): return null
+	# print("      Read snake_case, pos: ", spb.get_position()) # DEBUG
+	return resource
+	
 func _read_update_status(spb: StreamPeerBuffer) -> UpdateStatusData:
 	var resource := UpdateStatusData.new()
 	var tag := read_u8(spb) # Enum tag

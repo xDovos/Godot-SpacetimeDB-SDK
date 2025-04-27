@@ -13,10 +13,14 @@ const BSATN_PROTOCOL = "v1.bsatn.spacetimedb"
 enum CompressionPreference { NONE = 0, BROTLI = 1, GZIP = 2 }
 var preferred_compression: CompressionPreference = CompressionPreference.NONE # Default to None
 
+var _total_bytes_send := 0
+var _total_bytes_received := 0
+
 signal connected
 signal disconnected
 signal connection_error(code: int, reason: String)
-signal message_received(data: PackedByteArray) # Always BSATN
+signal message_received(data: PackedByteArray) 
+signal total_bytes(sended: int, received: int)
 
 func _init(compression:int, debug_mode:bool):
 	preferred_compression = compression
@@ -34,6 +38,13 @@ func set_token(token: String):
 func set_compression_preference(preference: CompressionPreference):
 	self.preferred_compression = preference
 
+func send_bytes(bytes:PackedByteArray) -> Error:
+	var err := _websocket.send(bytes)
+	if err == OK:
+		_total_bytes_send += bytes.size()
+	total_bytes.emit(_total_bytes_send, _total_bytes_received)
+	return err;
+	
 func connect_to_database(base_url: String, database_name: String, connection_id: String, compression:CompressionPreference): # Added connection_id
 	if _is_connected or _connection_requested:
 		print_log("SpacetimeDBConnection: Already connected or connecting.")
@@ -115,8 +126,10 @@ func _process(delta: float) -> void:
 			# Process incoming packets
 			while _websocket.get_available_packet_count() > 0:
 				var packet_bytes := _websocket.get_packet()
+				_total_bytes_received += packet_bytes.size()
 				# We only support BSATN now
 				emit_signal("message_received", packet_bytes)
+				total_bytes.emit(_total_bytes_send, _total_bytes_received)
 
 		WebSocketPeer.STATE_CONNECTING:
 			# Still trying to connect
