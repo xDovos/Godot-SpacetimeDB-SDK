@@ -26,7 +26,8 @@ func on_user_received(user:User):
 		local_user = user;
 		print(\"Damage: \")
 		print(\"Amount: \",user.damage.amount)
-		print(\"Source: \", user.damage.source.hex_encode())
+		print(\"Source: \", user.damage.int_vec)
+		
 		subscibe_on_lobby(user.lobby_id)
 	else:
 		if users.has(user.identity):return;

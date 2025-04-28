@@ -365,14 +365,9 @@ func read_bsatn_row_list(spb: StreamPeerBuffer) -> Array[PackedByteArray]:
 # Populates an existing Resource instance from raw BSATN bytes based on its exported properties.
 func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:
 	if not resource or not resource.get_script():
-		# Use spb pos for error reporting if available, otherwise -1
 		var err_pos := -1 if not spb else spb.get_position()
 		_set_error("Cannot populate null or scriptless resource", err_pos)
 		return false
-
-	# REMOVED: We now receive the spb directly
-	# var spb := StreamPeerBuffer.new()
-	# spb.data_array = raw_bytes
 
 	var properties: Array = resource.get_script().get_script_property_list()
 
@@ -382,42 +377,59 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 
 		var prop_name: StringName = prop.name
 		var prop_type: Variant.Type = prop.type
-		var value = null # The value read from the buffer
+		var value = null
 
-		# 1. Check for specific BSATN type override via metadata
-		var meta_key := "bsatn_type_" + prop_name
-		var specific_reader_callable: Callable = _get_specific_bsatn_reader(resource, meta_key)
-
-		if specific_reader_callable.is_valid():
-			# Specific readers typically only need the buffer
-			value = specific_reader_callable.call(spb)
-		else:
-			# 2. Fallback to default reader based on property type
-			if _property_readers.has(prop_type):
-				var default_reader_callable: Callable = _property_readers[prop_type]
-				# Pass resource and prop info AND spb to reader
-				value = default_reader_callable.call(spb, resource, prop) # Pass spb
+		if prop_type == TYPE_ARRAY:
+			# Handle arrays: Use the dedicated array reader from _property_readers
+			var array_reader_callable: Callable = _property_readers.get(TYPE_ARRAY)
+			if array_reader_callable.is_valid():
+				# _read_property_array internally handles element type via hint/metadata
+				value = array_reader_callable.call(spb, resource, prop)
 			else:
-				_set_error("Unsupported property type '%s' for BSATN deserialization of property '%s' in resource '%s'" % [type_string(prop_type), prop_name, resource.resource_path], spb.get_position())
+				# This should not happen if initialized correctly
+				_set_error("Internal error: No reader configured for TYPE_ARRAY.", spb.get_position())
+				return false # Cannot proceed
+		elif prop_type == TYPE_OBJECT:
+			# Handle nested objects: Use the dedicated object reader
+			var object_reader_callable: Callable = _property_readers.get(TYPE_OBJECT)
+			if object_reader_callable.is_valid():
+				# _read_property_object handles instantiation and recursive population
+				value = object_reader_callable.call(spb, resource, prop)
+			else:
+				_set_error("Internal error: No reader configured for TYPE_OBJECT.", spb.get_position())
 				return false
+		else:
+			# Handle non-array, non-object types (Primitives, Vector*, etc.)
+			# 1. Check for specific BSATN type override via metadata
+			var meta_key := "bsatn_type_" + prop_name
+			var specific_reader_callable: Callable = _get_specific_bsatn_reader(resource, meta_key)
 
-		# 3. Check for errors after attempting to read the value
+			if specific_reader_callable.is_valid():
+				# Use the specific reader found via metadata (e.g., read_u8, read_i32)
+				value = specific_reader_callable.call(spb)
+			else:
+				# 2. Fallback to default reader based on property type (if no metadata)
+				if _property_readers.has(prop_type):
+					var default_reader_callable: Callable = _property_readers[prop_type]
+					# Pass context only if needed (shouldn't be for primitives)
+					value = default_reader_callable.call(spb, resource, prop) # Pass context just in case
+				else:
+					# 3. Unsupported primitive/other type
+					_set_error("Unsupported property type '%s' (or missing reader) for BSATN deserialization of property '%s' in resource '%s'" % [type_string(prop_type), prop_name, resource.resource_path], spb.get_position())
+					return false
+
+		# Check for errors after attempting to read the value
 		if has_error():
 			# Error should have been set by the reader function
-			# Add context if missing and error wasn't already about this property
 			if not _last_error.contains(str(prop_name)):
 				var existing_error = get_last_error() # Consume the error
 				_set_error("Failed reading value for property '%s' in '%s'. Cause: %s" % [prop_name, resource.resource_path, existing_error], spb.get_position())
 			return false
 
-		# 4. Set the read value onto the resource property
+		# Set the read value onto the resource property using the existing function
 		if not _set_resource_property(resource, prop_name, prop_type, value):
 			# _set_resource_property will set the error if assignment fails
 			return false
-
-	# 5. Final check removed: This function might be called recursively
-	#    and only read part of the buffer. The caller that provided the
-	#    initial complete buffer segment (e.g., for a row) should do the check.
 
 	return true # Successfully populated all properties
 
@@ -454,7 +466,7 @@ func _set_resource_property(resource: Resource, prop_name: StringName, prop_type
 			push_warning("Read value for property '%s' was null. Skipping assignment." % prop_name)
 		return true # Continue parsing other properties
 
-	if prop_type == TYPE_ARRAY and value is Array:
+	if prop_type == TYPE_ARRAY:
 		# Assign elements to the existing typed array
 		var target_array = resource.get(prop_name)
 		if target_array is Array:

@@ -24,6 +24,7 @@ pub struct User {
 pub struct Damage {
     amount: u32,
     source: Identity,
+    int_vec: Vec<u8>,
 }
 
 #[derive(SpacetimeType, Debug)]
@@ -62,6 +63,10 @@ pub fn client_connected(ctx: &ReducerContext) {
         }
     } else {
         let new_name = get_random_name(&ctx);
+        let mut int_vec = Vec::new();
+        int_vec.push(10);
+        int_vec.push(20);
+        //int_vec.push(3);
         ctx.db.user().insert(User {
             identity: ctx.sender,
             online: true,
@@ -69,6 +74,7 @@ pub fn client_connected(ctx: &ReducerContext) {
             damage: Damage {
                 amount: 0,
                 source: ctx.sender,
+                int_vec,
             },
         });
 
