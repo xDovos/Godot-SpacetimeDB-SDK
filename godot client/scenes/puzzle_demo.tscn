@@ -24,6 +24,9 @@ func on_user_received(user:User):
 	if local_user == null and user.identity == SpacetimeDB.get_local_identity().identity:
 		print(\"Set local user\", user.identity.hex_encode())
 		local_user = user;
+		print(\"Damage: \")
+		print(\"Amount: \",user.damage.amount)
+		print(\"Source: \", user.damage.source.hex_encode())
 		subscibe_on_lobby(user.lobby_id)
 	else:
 		if users.has(user.identity):return;

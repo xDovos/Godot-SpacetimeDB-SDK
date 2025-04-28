@@ -115,6 +115,7 @@ func _initialize_property_readers() -> void:
 		TYPE_VECTOR2: Callable(self, "_read_property_vector2"),
 		TYPE_COLOR: Callable(self, "_read_property_color"),
 		TYPE_ARRAY: Callable(self, "_read_property_array"),
+		TYPE_OBJECT: Callable(self, "_read_property_object")
 		# Add other types here if needed
 	}
 
@@ -362,13 +363,16 @@ func read_bsatn_row_list(spb: StreamPeerBuffer) -> Array[PackedByteArray]:
 # --- Row Deserialization ---
 
 # Populates an existing Resource instance from raw BSATN bytes based on its exported properties.
-func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArray) -> bool:
+func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:
 	if not resource or not resource.get_script():
-		_set_error("Cannot populate null or scriptless resource", -1)
+		# Use spb pos for error reporting if available, otherwise -1
+		var err_pos := -1 if not spb else spb.get_position()
+		_set_error("Cannot populate null or scriptless resource", err_pos)
 		return false
 
-	var spb := StreamPeerBuffer.new()
-	spb.data_array = raw_bytes
+	# REMOVED: We now receive the spb directly
+	# var spb := StreamPeerBuffer.new()
+	# spb.data_array = raw_bytes
 
 	var properties: Array = resource.get_script().get_script_property_list()
 
@@ -385,13 +389,14 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 		var specific_reader_callable: Callable = _get_specific_bsatn_reader(resource, meta_key)
 
 		if specific_reader_callable.is_valid():
+			# Specific readers typically only need the buffer
 			value = specific_reader_callable.call(spb)
 		else:
 			# 2. Fallback to default reader based on property type
 			if _property_readers.has(prop_type):
 				var default_reader_callable: Callable = _property_readers[prop_type]
-				# Pass resource and prop info to reader if needed (esp. for arrays)
-				value = default_reader_callable.call(spb, resource, prop)
+				# Pass resource and prop info AND spb to reader
+				value = default_reader_callable.call(spb, resource, prop) # Pass spb
 			else:
 				_set_error("Unsupported property type '%s' for BSATN deserialization of property '%s' in resource '%s'" % [type_string(prop_type), prop_name, resource.resource_path], spb.get_position())
 				return false
@@ -399,9 +404,10 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 		# 3. Check for errors after attempting to read the value
 		if has_error():
 			# Error should have been set by the reader function
-			# Add context if missing
-			if not _last_error.contains(prop_name):
-				_set_error("Failed reading value for property '%s' in '%s'. Cause: %s" % [prop_name, resource.resource_path, get_last_error()], spb.get_position())
+			# Add context if missing and error wasn't already about this property
+			if not _last_error.contains(str(prop_name)):
+				var existing_error = get_last_error() # Consume the error
+				_set_error("Failed reading value for property '%s' in '%s'. Cause: %s" % [prop_name, resource.resource_path, existing_error], spb.get_position())
 			return false
 
 		# 4. Set the read value onto the resource property
@@ -409,15 +415,12 @@ func _populate_resource_from_bytes(resource: Resource, raw_bytes: PackedByteArra
 			# _set_resource_property will set the error if assignment fails
 			return false
 
-	# 5. Final check: ensure all bytes were consumed
-	if spb.get_position() < spb.get_size():
-		_set_error("Extra %d bytes remaining after parsing resource '%s'" % [spb.get_size() - spb.get_position(), resource.resource_path], spb.get_position())
-		# Decide if this is a fatal error. Often it indicates a mismatch.
-		# return false
-		push_error(_last_error) # Warn instead of failing hard for now
-		clear_error() # Clear the warning so parsing doesn't stop here
+	# 5. Final check removed: This function might be called recursively
+	#    and only read part of the buffer. The caller that provided the
+	#    initial complete buffer segment (e.g., for a row) should do the check.
 
-	return true
+	return true # Successfully populated all properties
+
 
 # Helper to get a specific reader based on "bsatn_type_" metadata.
 func _get_specific_bsatn_reader(resource: Resource, meta_key: String) -> Callable:
@@ -490,6 +493,54 @@ func _read_property_packed_byte_array(spb: StreamPeerBuffer, resource: Resource,
 
 	return read_bytes(spb, length)
 
+# Reads an embedded Resource property (TYPE_OBJECT).
+# Assumes the resource fields are serialized inline without length prefix.
+# Uses the preloaded _possible_row_schemas for instantiation.
+func _read_property_object(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> Resource:
+	var prop_name: StringName = prop.name
+	# The class name comes from the property definition's hint
+	var nested_class_name: StringName = prop.class_name
+
+	# 1. Check if the property hint specified a class name
+	if nested_class_name == &"":
+		_set_error("Property '%s' is TYPE_OBJECT but has no class_name hint in script '%s'. Cannot deserialize." % [prop_name, resource.get_script().resource_path], spb.get_position())
+		return null
+
+	# 2. Look up the required schema script in our preloaded dictionary
+	var key := nested_class_name.to_lower()
+	if not _possible_row_schemas.has(key):
+		# Error: The required schema wasn't loaded during initialization
+		_set_error("Could not find preloaded schema '%s' (required by property '%s') in _possible_row_schemas. Ensure the script exists and is correctly named or has 'table_name' metadata." % [nested_class_name, prop_name], spb.get_position())
+		return null # Cannot proceed without the schema script
+
+	# 3. Get the script and attempt to instantiate it
+	var script: Script = _possible_row_schemas[key]
+	if not script:
+		# This case should be unlikely if .has(key) returned true, but check defensively
+		_set_error("Internal error: Schema found for key '%s' but script object is null (property '%s')." % [key, prop_name], spb.get_position())
+		return null
+
+	var nested_instance: Resource = script.new()
+
+	# 4. Check if instantiation was successful
+	if nested_instance == null:
+		# Error: script.new() failed for some reason (e.g., script error)
+		var script_path = script.resource_path if script else "Unknown Script"
+		_set_error("Failed to instantiate nested resource from script '%s' (required by property '%s'). Check the script for errors." % [script_path, prop_name], spb.get_position())
+		return null # Instantiation failed
+
+	# 5. Recursively populate the newly created nested resource instance
+	if not _populate_resource_from_bytes(nested_instance, spb):
+		# Error should be set by the recursive call
+		# Add context if the error message doesn't already mention the property/type
+		if not has_error(): # Defensive check, error should already be set
+			_set_error("Failed during recursive population for nested resource '%s' of type '%s'." % [prop_name, nested_class_name], spb.get_position())
+		# Don't return the partially populated (or failed) instance
+		return null
+
+	# 6. Success: Instantiation and population complete
+	return nested_instance
+	
 func _read_property_int(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> int:
 	# Default integer type is i64 as per BSATN common usage for IDs/timestamps
 	# Specific types (u8, i32, etc.) should be handled by "bsatn_type_" metadata.
@@ -880,46 +931,44 @@ func _read_table_update(spb: StreamPeerBuffer) -> TableUpdateData:
 	var row_schema_script: Script = _possible_row_schemas.get(table_name_lower)
 
 	if not row_schema_script and updates_count > 0:
-		# Only warn if there are updates but no schema to parse them
 		push_warning("No row schema found for table '%s', cannot deserialize rows." % resource.table_name)
-		# We still need to consume the raw update data below, even if we can't parse rows.
 
 	for i in range(updates_count):
 		if has_error(): break # Stop processing updates if an error occurred
 
 		var update_start_pos := spb.get_position()
-
-		# 1. Handle potential compression of the QueryUpdate block
 		var query_update_spb: StreamPeerBuffer = _get_query_update_stream(spb, resource.table_name)
 		if has_error() or query_update_spb == null:
-			# Error set by _get_query_update_stream or internal error
-			if not has_error(): # Avoid double error message
+			if not has_error():
 				_set_error("Failed to get query update stream for table '%s'." % resource.table_name, update_start_pos)
-			break # Stop processing updates for this table
+			break
 
-		# 2. Read QueryUpdate { deletes: BsatnRowList, inserts: BsatnRowList }
-		#    Read from the correct buffer (original or decompressed)
 		var raw_deletes := read_bsatn_row_list(query_update_spb)
 		if has_error(): break
 		var raw_inserts := read_bsatn_row_list(query_update_spb)
 		if has_error(): break
 
-		# If the stream was decompressed, check if all bytes were consumed
-		if query_update_spb != spb: # It was a temporary decompressed buffer
+		if query_update_spb != spb: # Check decompressed stream consumption
 			if query_update_spb.get_position() < query_update_spb.get_size():
 				push_error("Extra %d bytes remaining in decompressed QueryUpdate block for table '%s'" % \
 						[query_update_spb.get_size() - query_update_spb.get_position(), resource.table_name])
-			# query_update_spb (temp buffer) will be garbage collected
+			# temp_spb will be GC'd
 
-		# 3. Deserialize raw row bytes if schema exists
 		if row_schema_script:
 			# Process deletes
 			for raw_row_bytes in raw_deletes:
 				var row_resource = row_schema_script.new()
-				if _populate_resource_from_bytes(row_resource, raw_row_bytes):
+				# Create a temporary SPB for the raw row data
+				var row_spb := StreamPeerBuffer.new()
+				row_spb.data_array = raw_row_bytes
+				# Call populate with the temporary SPB
+				if _populate_resource_from_bytes(row_resource, row_spb):
+					# Check if all bytes for this row were consumed
+					if row_spb.get_position() < row_spb.get_size():
+						push_error("Extra %d bytes remaining after parsing delete row for table '%s'" % [row_spb.get_size() - row_spb.get_position(), resource.table_name])
+						# Mark as error? Or just warn? For now, just warn and add anyway.
 					all_parsed_deletes.append(row_resource)
 				else:
-					# _populate sets the error, just need to stop processing this table's updates
 					push_error("Stopping update processing for table '%s' due to delete row parsing failure." % resource.table_name)
 					break # Break inner loop (deletes)
 			if has_error(): break # Break outer loop (updates)
@@ -927,20 +976,23 @@ func _read_table_update(spb: StreamPeerBuffer) -> TableUpdateData:
 			# Process inserts
 			for raw_row_bytes in raw_inserts:
 				var row_resource = row_schema_script.new()
-				if _populate_resource_from_bytes(row_resource, raw_row_bytes):
+				# Create a temporary SPB for the raw row data
+				var row_spb := StreamPeerBuffer.new()
+				row_spb.data_array = raw_row_bytes
+				# Call populate with the temporary SPB
+				if _populate_resource_from_bytes(row_resource, row_spb):
+					# Check if all bytes for this row were consumed
+					if row_spb.get_position() < row_spb.get_size():
+						push_error("Extra %d bytes remaining after parsing insert row for table '%s'" % [row_spb.get_size() - row_spb.get_position(), resource.table_name])
+						# Mark as error? Or just warn? For now, just warn and add anyway.
 					all_parsed_inserts.append(row_resource)
 				else:
 					push_error("Stopping update processing for table '%s' due to insert row parsing failure." % resource.table_name)
 					break # Break inner loop (inserts)
 			if has_error(): break # Break outer loop (updates)
-		# else: No schema, rows remain unprocessed (or could be stored raw if needed)
 
-	# After the loop, check for errors again
-	if has_error():
-		return null # Indicate failure to parse this TableUpdate
+	if has_error(): return null
 
-	# Populate the final resource arrays
-	# Use assign() for safety, although append() should work too
 	resource.deletes.assign(all_parsed_deletes)
 	resource.inserts.assign(all_parsed_inserts)
 

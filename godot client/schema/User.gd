@@ -4,6 +4,7 @@ class_name User
 @export var identity: PackedByteArray
 @export var online: bool
 @export var lobby_id:int
+@export var damage:Damage
 
 func _init():
 	set_meta("table_name", "user")

@@ -18,6 +18,12 @@ pub struct User {
     identity: Identity,
     online: bool,
     lobby_id: u64,
+    damage: Damage,
+}
+#[derive(SpacetimeType, Debug)]
+pub struct Damage {
+    amount: u32,
+    source: Identity,
 }
 
 #[derive(SpacetimeType, Debug)]
@@ -60,6 +66,10 @@ pub fn client_connected(ctx: &ReducerContext) {
             identity: ctx.sender,
             online: true,
             lobby_id: 0,
+            damage: Damage {
+                amount: 0,
+                source: ctx.sender,
+            },
         });
 
         let mut test_vec = Vec::new();
