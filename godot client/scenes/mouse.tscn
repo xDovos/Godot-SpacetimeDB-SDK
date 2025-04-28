@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3 uid="uid://bn1hfkbb68wno"]
+
+[ext_resource type="Texture2D" uid="uid://b6djqj4ukqhqb" path="res://icons/mouse.png" id="1_iog6k"]
+[ext_resource type="Script" uid="uid://c1k3bu0e3ecgb" path="res://scenes/mouse.gd" id="2_dexx5"]
+[ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_j7mu1"]
+[ext_resource type="Script" uid="uid://cxtm1a3lvs5kp" path="res://schema/UserData.gd" id="4_lbrf4"]
+
+[node name="Mouse" type="Sprite2D" node_paths=PackedStringArray("receiver")]
+scale = Vector2(0.262793, 0.229391)
+texture = ExtResource("1_iog6k")
+script = ExtResource("2_dexx5")
+receiver = NodePath("Receiver [UserData]")
+
+[node name="RichTextLabel" type="RichTextLabel" parent="."]
+offset_left = -228.0
+offset_top = 139.0
+offset_right = 259.0
+offset_bottom = 349.0
+theme_override_font_sizes/normal_font_size = 86
+bbcode_enabled = true
+text = "[wave]flametime"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Receiver [UserData]" type="Node" parent="."]
+script = ExtResource("3_j7mu1")
+data_to_receive = ExtResource("4_lbrf4")
+metadata/_custom_type_script = "uid://jvk6ou7i2d4s"

@@ -167,7 +167,7 @@ func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
 		_local_db.apply_database_update(initial_sub.database_update)
 		emit_signal("database_initialized")
 		
-	if message_resource is SubscribeMultiAppliedData:
+	elif message_resource is SubscribeMultiAppliedData:
 		var initial_sub: SubscribeMultiAppliedData = message_resource
 		print_log("SpacetimeDBClient: Processing Initial Subscription (Req ID: %d)" % initial_sub.request_id)
 		_local_db.apply_database_update(initial_sub.database_update)
@@ -175,8 +175,8 @@ func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
 			current_subscriptions[initial_sub.query_id.id] = pending_subscriptions[initial_sub.query_id.id]
 			pending_subscriptions.erase(initial_sub.query_id.id)
 		emit_signal("database_initialized")
-	
-	if message_resource is UnsubscribeMultiAppliedData:
+		
+	elif message_resource is UnsubscribeMultiAppliedData:
 		var unsub: UnsubscribeMultiAppliedData = message_resource
 		_local_db.apply_database_update(unsub.database_update)
 		print_log("Unsubscribe: " + str(current_subscriptions[unsub.query_id.id]))

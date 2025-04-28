@@ -37,7 +37,6 @@ size = Vector3(32, 0.5, 32)
 
 [node name="MainClient" type="Node3D" parent="."]
 script = ExtResource("1_h2yge")
-player_prefab = ExtResource("2_0xm2m")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 1, 15, 17)

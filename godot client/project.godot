@@ -12,12 +12,18 @@ config_version=5
 
 config/name="spacetimeDB"
 config/tags=PackedStringArray("git")
+run/main_scene="uid://bbffb4bvr3yin"
 config/features=PackedStringArray("4.4", "Mobile")
 config/icon="res://icon.svg"
 
 [autoload]
 
 SpacetimeDB="*res://addons/SpacetimeDB/Core/SpacetimeDBClient.gd"
+
+[display]
+
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [editor_plugins]
 
@@ -81,3 +87,4 @@ pan_down={
 [rendering]
 
 renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true

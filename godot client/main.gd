@@ -1,9 +1,6 @@
 extends Node3D
 
-@export var player_prefab: PackedScene
-
 func _ready():
-		
 	SpacetimeDB.connect_db(
 		"https://flametime.cfd/spacetime", #WARNING <--- replace it with your url
 		"quickstart-chat", #WARNING <--- replace it with your database
