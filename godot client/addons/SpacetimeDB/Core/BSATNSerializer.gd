@@ -127,6 +127,16 @@ func write_vec_u8(v: PackedByteArray) -> void:
 	write_u32_le(v.size())
 	if v.size() > 0: write_bytes(v) # Avoid calling put_data with empty array if possible
 
+#Writes a Rust sum type enum
+func write_rust_enum(value):
+	write_u8(value.value)
+	var sub_class: String = value.enum_sub_classes[value.value]
+	if not sub_class == "None":
+		var data = value.data
+		if not data:
+			data = _generate_default_type(sub_class)
+		_write_argument_value(data, sub_class)
+
 # --- Core Serialization Logic ---
 
 # Helper to get the specific BSATN writer METHOD NAME based on metadata value.
@@ -212,7 +222,6 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 
 	# Check for errors one last time after attempting the write operation
 	return not has_error()
-
 
 # Serializes the fields of a Resource instance sequentially.
 func _serialize_resource_fields(resource: Resource) -> bool:
@@ -321,7 +330,7 @@ func _write_argument_value(value, rust_type: String = "") -> bool:
 		TYPE_ARRAY: _set_error("Cannot serialize Array as direct argument."); return false # Arrays usually need structure
 		TYPE_OBJECT:
 			if rust_type == "enum":
-				write_i64_le(value.value)
+				write_rust_enum(value)
 			elif value is Resource:
 				# Serialize resource fields directly inline (recursive)
 				if not _serialize_resource_fields(value):
@@ -332,6 +341,21 @@ func _write_argument_value(value, rust_type: String = "") -> bool:
 		_:
 			_set_error("Unsupported argument type: %s" % type_string(value_type)); return false
 	return not has_error()
+
+#Helper to generate a zero struct from a rust type
+func _generate_default_type(rust_type: String) -> Variant:
+	match rust_type:
+		"i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64":
+			return int(0)
+		"f32", "f64":
+			return float(0)
+		"bool": return false
+		"String": return ""
+		"Vector3": return Vector3.ZERO
+		"Vector2": return Vector2.ZERO
+		"Color": return Color.BLACK
+		"Quaternion": return Quaternion.IDENTITY
+		_: return null
 
 # Helper to serialize a single Resource argument into raw bytes (e.g., for reducer calls)
 func _serialize_resource_argument(resource_arg: Resource) -> PackedByteArray:
