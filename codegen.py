@@ -55,8 +55,8 @@ META_TYPE_MAP = {
 #endregion
 
 #region Regex Patterns
-SPACETIME_TYPE_REGEX = re.compile(r'#\[.*SpacetimeType.*\]')
-TABLE_REGEX = re.compile(r'#\[table\(name\s*=\s*(?P<name>\w+)(?:,\s*public)?\)\]')
+SPACETIME_TYPE_REGEX = re.compile(r'#\[.*(SpacetimeType).*\]')
+TABLE_REGEX = re.compile(r'#\[.*table\(.*name\s*=\s*(?P<name>\w+).*\)\]')
 REDUCER_REGEX = re.compile(r'#\[reducer.*\]')
 ENUM_DEF_REGEX = re.compile(r'enum\s+(?P<enum_name>\w+)\s*\{')
 ENUM_FIELD_REGEX = re.compile(r'(?P<enum_field_name>\w+)\s*([(](?P<field_sub_class>\w+)[)],|[{](?P<field_sub_classes>[\w:\s,]+)[}],{0,1}){0,1}')
