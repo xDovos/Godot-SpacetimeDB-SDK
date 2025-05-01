@@ -144,7 +144,6 @@ def parse_rust_struct(lines):
                 field_info['is_optional'] = True
             vec = VEC_REGEX.search(field_info['field_type'])
             if vec:
-                print_debug(f"Found Vec type: {vec.group('vec_T')} in field {field_info['field_name']}")
                 vec_type = vec.group('vec_T')
                 TYPE_MAP[field_info['field_type']] = f"Array[int]"
                 META_TYPE_MAP[field_info['field_type']] = vec_type
@@ -180,7 +179,6 @@ def parse_rust_enum(lines):
                 enum_sub_classes.append(field_sub_class)                  
                 if field_sub_class:
                     enum_values.append({'name': field_name, 'sub_class': field_sub_class})
-                    # print_debug(f"Enum sub-class: {field_sub_class}")
                 elif field_sub_classes:
                     sub_classes = [s.strip() for s in field_sub_classes.split(',') if s.strip()]
                     enum_values.append({'name': field_name, 'sub_classes': sub_classes})
@@ -457,7 +455,6 @@ def process_file(filepath):
             name = module_name_match.group('module_name')
             global MODULE_NAME
             MODULE_NAME = name
-            print_debug(f"Module name found: {MODULE_NAME} in file {filepath}")
             continue
 
 def proccess_all_files():
@@ -465,8 +462,7 @@ def proccess_all_files():
         dirs[:] = [d for d in dirs if d not in ['target', '.git', '.vscode', 'schema']]
         for file in files:
             if file.endswith('.rs'):
-                process_file(os.path.join(root, file))     
-    print_debug(f"Module name found: {MODULE_NAME}")
+                process_file(os.path.join(root, file))
     if MODULE_NAME == None:
         print_error("""MODULE_NAME not found in lib.rs. Please ensure it is defined as follows in your lib.rs file:
 #[allow(dead_code)]
