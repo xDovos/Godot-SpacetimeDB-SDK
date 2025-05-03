@@ -64,7 +64,7 @@ SPACETIME_TYPE_REGEX = re.compile(r'#\[.*(SpacetimeType).*\]')
 TABLE_REGEX = re.compile(r'#\[.*table\(.*name\s*=\s*(?P<name>\w+).*\)\]')
 REDUCER_REGEX = re.compile(r'#\[reducer.*\]')
 ENUM_DEF_REGEX = re.compile(r'enum\s+(?P<enum_name>\w+)\s*\{')
-ENUM_FIELD_REGEX = re.compile(r'(?P<enum_field_name>\w+)\s*([(](?P<field_sub_class>\w+)[)],|[{](?P<field_sub_classes>[\w:\s,]+)[}],{0,1}){0,1}')
+ENUM_FIELD_REGEX = re.compile(r'(?P<enum_field_name>\w+)\s*([(](?P<field_sub_class>[\w<>]+)[)],|[{](?P<field_sub_classes>[\w:\s,]+)[}],{0,1}){0,1}')
 STRUCT_DEF_REGEX = re.compile(r'pub\s+struct\s+(?P<struct_name>\w+)\s*\{')
 STRUCT_FIELD_REGEX = re.compile(r'^\s*(?P<field_name>\w+)\s*:\s*(?P<field_type>[\w:<>]+),?\s*$')
 OPTION_REGEX = re.compile(r'Option<(?P<option_T>\w+)>')
@@ -173,6 +173,7 @@ def parse_rust_enum(lines):
         if "," in line and not ":" in line:
             field = ENUM_FIELD_REGEX.search(enum_field)
             if field:
+                print_debug(f"Field: {field}")
                 field_name = field.group('enum_field_name')
                 field_sub_class = field.group('field_sub_class')
                 field_sub_classes = field.group('field_sub_classes')
@@ -428,12 +429,13 @@ def process_file(filepath):
         reducer_match = REDUCER_REGEX.search(line)
         if reducer_match:
             fn_def = ""
+            while True:                
+                if "fn" in lines[i]: break
+                i += 1
             while True:
-                if not "fn" in lines[i]:
-                    i += 1
                 fn_def += lines[i].strip()
                 if "{" in lines[i]: break
-                i += 1                
+                i += 1              
             start_of_params = fn_def.find("(")
             end_of_params = fn_def.find(")")
             function_name = fn_def[7:start_of_params]
