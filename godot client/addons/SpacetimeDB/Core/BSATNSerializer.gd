@@ -131,17 +131,16 @@ func write_vec_u8(v: PackedByteArray) -> void:
 func write_rust_enum(value):
 	write_u8(value.value)
 	var sub_class: String = value.enum_sub_classes[value.value]
-	if sub_class.contains("Vec"):
+	if sub_class.begins_with("vec"):
 		if value.data is not Array:
 			_set_error("Sum type of rust enum is Vec<T> but the godot type is not an array.")
 			return
-		var str_len = sub_class.length()
-		var vec_type = sub_class.substr(4, str_len - 5)
+		var vec_type = sub_class.get_slice("_", 1)
 		write_u32_le(value.data.size()) # Write array length (u32)
 		for element in value.data:
 			_write_argument_value(element, vec_type)
 		return
-	if not sub_class == "None":
+	if not sub_class.is_empty():
 		var data = value.data
 		if not data:
 			data = _generate_default_type(sub_class)
@@ -337,7 +336,10 @@ func _write_argument_value(value, rust_type: String = "") -> bool:
 		TYPE_COLOR: write_color(value)
 		TYPE_QUATERNION: write_quaternion(value)
 		TYPE_PACKED_BYTE_ARRAY: write_vec_u8(value) # Default Vec<u8> for arguments
-		TYPE_ARRAY: _set_error("Cannot serialize Array as direct argument."); return false # Arrays usually need structure
+		TYPE_ARRAY:
+			write_u32_le(value.size()) # Write array length (u32)
+			for v in value:
+				_write_argument_value(v, rust_type)
 		TYPE_OBJECT:
 			if rust_type == "enum":
 				write_rust_enum(value)
