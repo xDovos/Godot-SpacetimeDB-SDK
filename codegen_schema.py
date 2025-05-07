@@ -224,12 +224,11 @@ def parse_schema(schema):
                 "name": param.get('name', {}).get('some', None),
             }
             param_type = param.get('algebraic_type', {})
+            if param_type.get('Array', None) is not None:
+                param_type = param_type.get('Array', {})
+                data["is_array"] = True
             if param_type.get('Product', None) is not None:
                 param_type = param_type.get('Product', {}).get('elements', [])[0].get('name', {}).get('some', None)
-            elif param_type.get('Array', None) is not None:
-                param_type = param_type.get('Array', {})
-                param_type = next(iter(param_type))
-                data["is_array"] = True
             elif param_type.get('Ref', None) is not None:
                 param_type = schema_types[param_type.get('Ref', -1)].get('name', {}).get('name', None)
             elif param_type.get('Sum', None) is not None:
