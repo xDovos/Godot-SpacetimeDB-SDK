@@ -341,7 +341,6 @@ def generate_reducers_gdscript(schema):
 class_name {to_pascal_case(module_name)}Reducer extends Resource\n\n"""
     
     for reducer in schema.get("reducers", []):
-        # params_str = ", ".join([f"{p.get('name', None)}: {TYPE_MAP.get(p['type'], 'TypeError')}" for p in reducer['params']])
         params_str = ""
         for p in reducer.get('params', []):
             name = p.get('name', None)
@@ -355,7 +354,6 @@ class_name {to_pascal_case(module_name)}Reducer extends Resource\n\n"""
             params_str += "cb: Callable = func(_t: TransactionUpdateData): pass"
         param_names = ", ".join([f"{p.get('name', None)}" for p in reducer['params']])
         param_types = ", ".join([f'"{META_TYPE_MAP.get(p['type'], "")}"' for p in reducer['params']])
-        # param_types = param_types.replace('"None"', "null")
         reducer_name = reducer.get('name', None)
         content += f"""static func {reducer_name}({params_str}) -> void:
 \tvar id = SpacetimeDB.call_reducer("{reducer_name}", [{param_names}], [{param_types}])
@@ -379,8 +377,6 @@ def generate_enum_gdscript(enum_data):
     for value in enum_values:
         enum_names += f"""\t{value['name']},\n"""
         _type = META_TYPE_MAP.get(value.get('type', None), None)
-        # if _type == "enum":
-        #     _type = "enum_" + value.get('type', None)
         if value.get('is_array', False):
             variant_types += f""""vec_{_type}", """
         elif _type is None:
