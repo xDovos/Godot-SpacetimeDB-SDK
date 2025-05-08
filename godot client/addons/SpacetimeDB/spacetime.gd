@@ -8,6 +8,7 @@ const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 var ui_panel: Control
 var http_request = HTTPRequest.new();
 var module_prefab:Control;
+var codegen_data: Variant
 
 func _enter_tree():
 	if not ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
@@ -28,22 +29,38 @@ func _enter_tree():
 		printerr("UI panel is not valid after instantiation attempt.")
 	
 	subscribe_controls()
+	load_codegen_data()
 		
 func subscribe_controls():
 	add_child(http_request)
 	module_prefab = ui_panel.get_node("prefab").duplicate()
-	
+
 	ui_panel.get_node("CheckUri").button_down.connect(check_uri);
 	ui_panel.get_node("Panel/Button").button_down.connect(add_module)
 	ui_panel.get_node("Generate").button_down.connect(generate_code);
-	pass;
 	
-func add_module():
+func add_module(name: String = "EnterModuleName", fromLoad: bool = false):
 	var new_module = module_prefab.duplicate()
+	var line_edit = new_module.get_node("LineEdit")
 	ui_panel.get_node("ScrollContainer/VBoxContainer").add_child(new_module)
-	new_module.get_node("Button").button_down.connect(func() : new_module.queue_free())
+	line_edit.text = name
+	if not fromLoad:
+		codegen_data.modules.append(line_edit.text)
+		save_codegen_data()
+
+	line_edit.focus_exited.connect(func():
+		var index = new_module.get_index()
+		codegen_data.modules[index] = line_edit.text
+		save_codegen_data()
+	)
+
+	new_module.get_node("Button").button_down.connect(func():
+		var index = new_module.get_index()
+		codegen_data.modules.remove_at(index)
+		save_codegen_data()
+		new_module.queue_free()
+	)
 	new_module.show()
-	pass;
 
 func generate_code():
 	print_log("Start code gen")
@@ -60,20 +77,41 @@ func generate_code():
 			
 	get_editor_interface().get_resource_filesystem().scan()
 	print_log("Code gen end")
-	pass;
-	
+
+func load_codegen_data() -> void:
+	var load_data = FileAccess.open("res://codegen_data.dat", FileAccess.READ)
+	if load_data:
+		codegen_data = JSON.parse_string(load_data.get_as_text())
+		load_data.close()		
+		ui_panel.get_node("Uri").text = codegen_data.uri
+		for module in codegen_data.modules.duplicate():
+			add_module(module, true)
+	else:
+		load_data.close()
+		codegen_data = {
+			"uri": "https://flametime.cfd/spacetime",
+			"modules": []
+		}
+		save_codegen_data()
+
+func save_codegen_data() -> void:
+	var save_file = FileAccess.open("res://codegen_data.dat", FileAccess.WRITE)
+	if not save_file:
+		printerr("Failed to open codegen_data.dat for writing.")
+		return
+	save_file.store_string(JSON.stringify(codegen_data))
+	save_file.close()
 
 func check_uri():
+	codegen_data.uri = ui_panel.get_node("Uri").text
+	save_codegen_data()
 	var uri = ui_panel.get_node("Uri").text + "/v1/ping"
 	http_request.request(uri)
 	var result = await http_request.request_completed
 	print_log("Response code: " + str(result[1]))
-	pass;
 
 func print_log(text:String):
 	ui_panel.get_node("Log").text += text + "\n"
-	pass;
-	
 
 func _exit_tree():
 	if is_instance_valid(ui_panel):
