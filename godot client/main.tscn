@@ -3,9 +3,9 @@
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_h2yge"]
 [ext_resource type="PackedScene" uid="uid://dvenminxkaei3" path="res://scenes/player.tscn" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://cv6bu0sabs8yh" path="res://example_code/spawner.gd" id="3_h2yge"]
-[ext_resource type="Script" uid="uid://8c6novjs8hcp" path="res://schema/User.gd" id="4_lquwl"]
+[ext_resource type="Script" uid="uid://bfxhxk3ye7ndm" path="res://schema/User.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="5_7mycd"]
-[ext_resource type="Script" uid="uid://cxtm1a3lvs5kp" path="res://schema/UserData.gd" id="5_272bh"]
+[ext_resource type="Script" uid="uid://bw23215cxrv2d" path="res://schema/UserData.gd" id="5_272bh"]
 [ext_resource type="Script" uid="uid://cbeq6brew0wkm" path="res://example_code/LobbyHolder.gd" id="6_7mycd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0xm2m"]
