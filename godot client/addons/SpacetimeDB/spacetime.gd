@@ -8,14 +8,20 @@ const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 
 var ui_panel: Control
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 var http_request = HTTPRequest.new();
 var module_prefab:Control;
 var codegen_data: Dictionary
 =======
+=======
+>>>>>>> Stashed changes
 var http_request = HTTPRequest.new()
 var module_prefab:Control
 var codegen_data: Variant
 static var spacetime: Spacetime
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 func _enter_tree():
@@ -116,11 +122,14 @@ func check_uri():
 	http_request.request(uri)
 	var result = await http_request.request_completed
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	if result[1] == 0:
 		print_log("Timeout Error: " +  uri)
 	else:
 		print_log("Response code: " + str(result[1]))
 =======
+=======
+>>>>>>> Stashed changes
 	clear_log()
 	print_log("Response code: " + str(result[1]))
 >>>>>>> Stashed changes
