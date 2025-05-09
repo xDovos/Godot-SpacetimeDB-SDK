@@ -3,12 +3,13 @@ extends EditorPlugin
 
 const AUTOLOAD_NAME := "SpacetimeDB"
 const AUTOLOAD_PATH := "res://addons/SpacetimeDB/Core/SpacetimeDBClient.gd"
+const SAVE_PATH := "res://addons/SpacetimeDB/codegen_data.dat"
 const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 
 var ui_panel: Control
 var http_request = HTTPRequest.new();
 var module_prefab:Control;
-var codegen_data: Variant
+var codegen_data: Dictionary
 
 func _enter_tree():
 	if not ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
@@ -32,6 +33,7 @@ func _enter_tree():
 	load_codegen_data()
 		
 func subscribe_controls():
+	http_request.timeout = 2;
 	add_child(http_request)
 	module_prefab = ui_panel.get_node("prefab").duplicate()
 
@@ -79,23 +81,22 @@ func generate_code():
 	print_log("Code gen end")
 
 func load_codegen_data() -> void:
-	var load_data = FileAccess.open("res://codegen_data.dat", FileAccess.READ)
+	var load_data = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if load_data:
 		codegen_data = JSON.parse_string(load_data.get_as_text())
-		load_data.close()		
+		load_data.close()
 		ui_panel.get_node("Uri").text = codegen_data.uri
 		for module in codegen_data.modules.duplicate():
 			add_module(module, true)
 	else:
-		load_data.close()
 		codegen_data = {
-			"uri": "https://flametime.cfd/spacetime",
+			"uri": "http://127.0.0.1:3000",
 			"modules": []
 		}
 		save_codegen_data()
 
 func save_codegen_data() -> void:
-	var save_file = FileAccess.open("res://codegen_data.dat", FileAccess.WRITE)
+	var save_file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if not save_file:
 		printerr("Failed to open codegen_data.dat for writing.")
 		return
@@ -108,7 +109,10 @@ func check_uri():
 	var uri = ui_panel.get_node("Uri").text + "/v1/ping"
 	http_request.request(uri)
 	var result = await http_request.request_completed
-	print_log("Response code: " + str(result[1]))
+	if result[1] == 0:
+		print_log("Timeout Error: " +  uri)
+	else:
+		print_log("Response code: " + str(result[1]))
 
 func print_log(text:String):
 	ui_panel.get_node("Log").text += text + "\n"
