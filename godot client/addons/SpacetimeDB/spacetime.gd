@@ -1,5 +1,5 @@
 @tool
-extends EditorPlugin
+class_name Spacetime extends EditorPlugin
 
 const AUTOLOAD_NAME := "SpacetimeDB"
 const AUTOLOAD_PATH := "res://addons/SpacetimeDB/Core/SpacetimeDBClient.gd"
@@ -7,9 +7,16 @@ const SAVE_PATH := "res://addons/SpacetimeDB/codegen_data.dat"
 const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 
 var ui_panel: Control
+<<<<<<< Updated upstream
 var http_request = HTTPRequest.new();
 var module_prefab:Control;
 var codegen_data: Dictionary
+=======
+var http_request = HTTPRequest.new()
+var module_prefab:Control
+var codegen_data: Variant
+static var spacetime: Spacetime
+>>>>>>> Stashed changes
 
 func _enter_tree():
 	if not ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
@@ -23,12 +30,12 @@ func _enter_tree():
 		else:
 			printerr("Failed to load UI scene: ", UI_PATH)
 			return
-
 	if is_instance_valid(ui_panel):
 		add_control_to_bottom_panel(ui_panel, AUTOLOAD_NAME)
 	else:
 		printerr("UI panel is not valid after instantiation attempt.")
 	
+	spacetime = self
 	subscribe_controls()
 	load_codegen_data()
 		
@@ -65,20 +72,19 @@ func add_module(name: String = "EnterModuleName", fromLoad: bool = false):
 	new_module.show()
 
 func generate_code():
-	print_log("Start code gen")
+	
+	clear_log()
+	print_log("Start Code Generation...")
 	for i in ui_panel.get_node("ScrollContainer/VBoxContainer").get_children():
 		var module_name = i.get_node("LineEdit").text
 		var uri = ui_panel.get_node("Uri").text + "/v1/database/" + module_name + "/schema?version=9"
 		http_request.request(uri)
 		var result = await http_request.request_completed
-		#print_log("Response code: " + str(result[1]))
 		if result[1] == 200:
 			var json = PackedByteArray(result[3]).get_string_from_utf8()
-			#print_log(json)
-			ui_panel.get_node("CodeGen")._on_request_completed(json)
-			
+			ui_panel.get_node("CodeGen")._on_request_completed(json, module_name)
 	get_editor_interface().get_resource_filesystem().scan()
-	print_log("Code gen end")
+	print_log("Code Generation Complete!")
 
 func load_codegen_data() -> void:
 	var load_data = FileAccess.open(SAVE_PATH, FileAccess.READ)
@@ -109,13 +115,30 @@ func check_uri():
 	var uri = ui_panel.get_node("Uri").text + "/v1/ping"
 	http_request.request(uri)
 	var result = await http_request.request_completed
+<<<<<<< Updated upstream
 	if result[1] == 0:
 		print_log("Timeout Error: " +  uri)
 	else:
 		print_log("Response code: " + str(result[1]))
+=======
+	clear_log()
+	print_log("Response code: " + str(result[1]))
+>>>>>>> Stashed changes
 
-func print_log(text:String):
-	ui_panel.get_node("Log").text += text + "\n"
+static func clear_log():
+	spacetime.ui_panel.get_node("Log").text = ""
+
+static func print_log(text: Variant) -> void:
+	var log = spacetime.ui_panel.get_node("Log")
+	match typeof(text):
+		TYPE_STRING:
+			log.text += text + "\n"
+		TYPE_ARRAY:
+			for i in text:
+				log.text += str(i) + " "
+			log.text += "\n"
+		_:
+			log.text += str(text) + "\n"
 
 func _exit_tree():
 	if is_instance_valid(ui_panel):
