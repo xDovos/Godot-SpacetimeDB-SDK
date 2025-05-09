@@ -1,0 +1,9 @@
+D:\GitHub\Godot-SpacetimeDB-SDK\second-module\target\debug\deps\libspacetimedb_primitives-90832835f3e860c6.rmeta: C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\lib.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\attr.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\col_list.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\errno.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\ids.rs
+
+D:\GitHub\Godot-SpacetimeDB-SDK\second-module\target\debug\deps\spacetimedb_primitives-90832835f3e860c6.d: C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\lib.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\attr.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\col_list.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\errno.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\ids.rs
+
+C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\lib.rs:
+C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\attr.rs:
+C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\col_list.rs:
+C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\errno.rs:
+C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-primitives-1.1.1\src\ids.rs:
