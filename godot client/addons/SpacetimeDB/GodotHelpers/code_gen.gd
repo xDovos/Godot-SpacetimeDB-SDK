@@ -28,6 +28,7 @@ const GDNATIVE_TYPES := {
 }
 var TYPE_MAP := {
 	"__identity__": "PackedByteArray",
+	"__connection_id__": "PackedByteArray",
 	"__timestamp_micros_since_unix_epoch__": "int",
 }
 var META_TYPE_MAP := {
@@ -42,6 +43,7 @@ var META_TYPE_MAP := {
 	"F32": "f32",
 	"F64": "f64",
 	"__identity__": "identity",
+	"__connection_id__": "connection_id",
 	"__timestamp_micros_since_unix_epoch__": "i64",
 }
 
@@ -58,11 +60,11 @@ func _enter_tree():
 func _on_request_completed(json_string, module_name):
 	var json = JSON.parse_string(json_string)
 	var schema: Dictionary = parse_schema(json, module_name)
-	if not DirAccess.dir_exists_absolute("res://%s" % "codegen"):
-		DirAccess.make_dir_recursive_absolute("res://%s" % "codegen")
-	var file = FileAccess.open("res://%s/readme.txt" % "codegen", FileAccess.WRITE)
+	if not DirAccess.dir_exists_absolute("res://%s" % "codegen_debug"):
+		DirAccess.make_dir_recursive_absolute("res://%s" % "codegen_debug")
+	var file = FileAccess.open("res://%s/readme.txt" % "codegen_debug", FileAccess.WRITE)
 	file.store_string("You can delete this directory and files. It's only used for codegen debugging.")
-	file = FileAccess.open("res://%s/schema_%s.json" % ["codegen", module_name], FileAccess.WRITE)
+	file = FileAccess.open("res://%s/schema_%s.json" % ["codegen_debug", module_name], FileAccess.WRITE)
 	file.store_string(JSON.stringify(schema, "\t", false))
 	build_gdscript_from_schema(schema)
 
@@ -88,6 +90,7 @@ func build_gdscript_from_schema(schema: Dictionary) -> void:
 			generated_files.append(output_file_path)
 			# Spacetime.print_log(["Content:", content])
 		elif type.has("enum"):
+			if not type.get("is_sum_type"): continue
 			var sum: Array = type.get("enum", [])
 			var folder_path: String = "spacetime_types"
 			var content: String = generate_enum_gdscript(type, module_name)
@@ -212,9 +215,17 @@ func generate_module_gdscript(schema: Dictionary) -> String:
 		var subfolder = "spacetime_types"
 		if _type.has("table_name"):
 			subfolder = "tables"
-		content += "const %s = preload('res://%s/%s/%s_%s.gd')\n" % \
-		[type_name.to_pascal_case(), CODEGEN_FOLDER, subfolder, 
-		module_name.to_snake_case(), type_name.to_snake_case()]
+		#If enum is not a rust sum type use enum
+		if _type.has("is_sum_type") and not _type.get("is_sum_type"):
+			content += "enum %s {\n" % type_name.to_pascal_case()
+			for variant in _type.get("enum", []):
+				var variant_name: String = variant.get("name", "")
+				content += "\t%s,\n" % variant_name.to_pascal_case()
+			content += "}\n"
+		else:
+			content += "const %s = preload('res://%s/%s/%s_%s.gd')\n" % \
+			[type_name.to_pascal_case(), CODEGEN_FOLDER, subfolder, 
+			module_name.to_snake_case(), type_name.to_snake_case()]
 	content += "\n"
 	for reducer in schema.get("reducers", []):
 		var params_str: String = ""
@@ -252,7 +263,6 @@ func generate_module_link(modules: Array[String]) -> void:
 	var file = FileAccess.open(output_file_path, FileAccess.WRITE)
 	if file:
 		file.store_string(content)
-	
 
 func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 	var schema_tables: Array = schema.get("tables", [])
@@ -307,9 +317,10 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 			types.append(type_data)
 		elif sum_type:
 			var elements := []
+			type_data["is_sum_type"] = false
 			for e in sum_type.get("variants", []):
 				var data := {
-					"name": e.get("name",{}).get("some", null),
+					"name": e.get("name",{}).get("some", null)
 				}
 				var variant_type = e.get("algebraic_type", {})
 				if variant_type.has("Array"):
@@ -331,11 +342,16 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 					variant_type = variant_type.keys()[0]
 				if variant_type:
 					data["type"] = variant_type
+					type_data["is_sum_type"] = true
 				elements.append(data)
 			type_data["enum"] = elements
 			types.append(type_data)
-			TYPE_MAP[type_name] = module_name.to_pascal_case() + type_name.to_pascal_case()
-			META_TYPE_MAP[type_name] = "enum"
+			if not type_data.get("is_sum_type"):
+				META_TYPE_MAP[type_name] = "u8"
+				TYPE_MAP[type_name] = "{0}Module.{1}".format([module_name.to_pascal_case(), type_name.to_pascal_case()])
+			else:
+				TYPE_MAP[type_name] = module_name.to_pascal_case() + type_name.to_pascal_case()
+				META_TYPE_MAP[type_name] = "enum"
 		else:
 			printerr("Invalid schema: Type 'Product' or 'Sum' not found for type: %s" % type_info)
 			return {}
