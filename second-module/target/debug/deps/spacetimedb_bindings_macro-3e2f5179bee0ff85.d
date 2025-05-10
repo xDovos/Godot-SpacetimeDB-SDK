@@ -1,9 +1,0 @@
-D:\GitHub\Godot-SpacetimeDB-SDK\second-module\target\debug\deps\spacetimedb_bindings_macro-3e2f5179bee0ff85.dll: C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\lib.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\reducer.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\sats.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\table.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\util.rs
-
-D:\GitHub\Godot-SpacetimeDB-SDK\second-module\target\debug\deps\spacetimedb_bindings_macro-3e2f5179bee0ff85.d: C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\lib.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\reducer.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\sats.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\table.rs C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\util.rs
-
-C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\lib.rs:
-C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\reducer.rs:
-C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\sats.rs:
-C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\table.rs:
-C:\Users\smumm\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\spacetimedb-bindings-macro-1.1.1\src\util.rs:
