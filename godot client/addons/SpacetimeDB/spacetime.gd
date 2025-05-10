@@ -3,26 +3,13 @@ class_name Spacetime extends EditorPlugin
 
 const AUTOLOAD_NAME := "SpacetimeDB"
 const AUTOLOAD_PATH := "res://addons/SpacetimeDB/Core/SpacetimeDBClient.gd"
-const SAVE_PATH := "res://addons/SpacetimeDB/codegen_data.dat"
 const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 
 var ui_panel: Control
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-var http_request = HTTPRequest.new();
-var module_prefab:Control;
-var codegen_data: Dictionary
-=======
-=======
->>>>>>> Stashed changes
 var http_request = HTTPRequest.new()
 var module_prefab:Control
 var codegen_data: Variant
 static var spacetime: Spacetime
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
 func _enter_tree():
 	if not ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
@@ -46,7 +33,6 @@ func _enter_tree():
 	load_codegen_data()
 		
 func subscribe_controls():
-	http_request.timeout = 2;
 	add_child(http_request)
 	module_prefab = ui_panel.get_node("prefab").duplicate()
 
@@ -77,10 +63,11 @@ func add_module(name: String = "EnterModuleName", fromLoad: bool = false):
 	)
 	new_module.show()
 
-func generate_code():
-	
+func generate_code():	
 	clear_log()
 	print_log("Start Code Generation...")
+	var codegen: Codegen = ui_panel.get_node("CodeGen")
+	var modules: Array[String] = []
 	for i in ui_panel.get_node("ScrollContainer/VBoxContainer").get_children():
 		var module_name = i.get_node("LineEdit").text
 		var uri = ui_panel.get_node("Uri").text + "/v1/database/" + module_name + "/schema?version=9"
@@ -88,27 +75,30 @@ func generate_code():
 		var result = await http_request.request_completed
 		if result[1] == 200:
 			var json = PackedByteArray(result[3]).get_string_from_utf8()
-			ui_panel.get_node("CodeGen")._on_request_completed(json, module_name)
+			codegen._on_request_completed(json, module_name)
+			modules.append(module_name)
+	codegen.generate_module_link(modules)
 	get_editor_interface().get_resource_filesystem().scan()
 	print_log("Code Generation Complete!")
 
 func load_codegen_data() -> void:
-	var load_data = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var load_data = FileAccess.open("res://codegen_data.dat", FileAccess.READ)
 	if load_data:
 		codegen_data = JSON.parse_string(load_data.get_as_text())
-		load_data.close()
+		load_data.close()		
 		ui_panel.get_node("Uri").text = codegen_data.uri
 		for module in codegen_data.modules.duplicate():
 			add_module(module, true)
 	else:
+		load_data.close()
 		codegen_data = {
-			"uri": "http://127.0.0.1:3000",
+			"uri": "https://flametime.cfd/spacetime",
 			"modules": []
 		}
 		save_codegen_data()
 
 func save_codegen_data() -> void:
-	var save_file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var save_file = FileAccess.open("res://codegen_data.dat", FileAccess.WRITE)
 	if not save_file:
 		printerr("Failed to open codegen_data.dat for writing.")
 		return
@@ -121,18 +111,8 @@ func check_uri():
 	var uri = ui_panel.get_node("Uri").text + "/v1/ping"
 	http_request.request(uri)
 	var result = await http_request.request_completed
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-	if result[1] == 0:
-		print_log("Timeout Error: " +  uri)
-	else:
-		print_log("Response code: " + str(result[1]))
-=======
-=======
->>>>>>> Stashed changes
 	clear_log()
 	print_log("Response code: " + str(result[1]))
->>>>>>> Stashed changes
 
 static func clear_log():
 	spacetime.ui_panel.get_node("Log").text = ""
