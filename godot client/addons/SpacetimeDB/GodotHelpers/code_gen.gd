@@ -59,7 +59,7 @@ enum RustOptionHandling {
 func _enter_tree():	
 	TYPE_MAP.merge(GDNATIVE_TYPES)
 
-func _on_request_completed(json_string, module_name):
+func _on_request_completed(json_string: String, module_name: String) -> Array[String]:
 	var json = JSON.parse_string(json_string)
 	var schema: Dictionary = parse_schema(json, module_name)
 	if not DirAccess.dir_exists_absolute("res://%s" % "codegen_debug"):
@@ -68,17 +68,19 @@ func _on_request_completed(json_string, module_name):
 	file.store_string("You can delete this directory and files. It's only used for codegen debugging.")
 	file = FileAccess.open("res://%s/schema_%s.json" % ["codegen_debug", module_name], FileAccess.WRITE)
 	file.store_string(JSON.stringify(schema, "\t", false))
-	build_gdscript_from_schema(schema)
+	var generated_files := build_gdscript_from_schema(schema)
+	return generated_files
 
-func build_gdscript_from_schema(schema: Dictionary) -> void:
+func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 	var module_name: String = schema.get("module", null)
-	var generated_files := []
+	var generated_files: Array[String] = []
 	for type in schema.get("types", []):
 		if type.has("gd_native"): continue
 		if type.has("struct"):
 			var struct: Array = type.get("struct", [])
 			var folder_path: String = "spacetime_types"
 			if type.has("table_name"):
+				if not type.has("primary_key_name"): continue
 				folder_path = "tables"
 			var content: String = generate_struct_gdscript(type, module_name)
 			var output_file_name: String = "%s_%s.gd" % \
@@ -90,7 +92,6 @@ func build_gdscript_from_schema(schema: Dictionary) -> void:
 			if file:
 				file.store_string(content)
 			generated_files.append(output_file_path)
-			# Spacetime.print_log(["Content:", content])
 		elif type.has("enum"):
 			if not type.get("is_sum_type"): continue
 			var sum: Array = type.get("enum", [])
@@ -113,6 +114,7 @@ func build_gdscript_from_schema(schema: Dictionary) -> void:
 		file.store_string(module_content)
 		generated_files.append(output_file_path)
 	Spacetime.print_log(["Generated files:\n", "\n".join(generated_files)])
+	return generated_files
 
 func generate_struct_gdscript(type, module_name) -> String:
 	var struct_name: String = type.get("name", "")
@@ -216,6 +218,10 @@ func generate_module_gdscript(schema: Dictionary) -> String:
 		var type_name: String = _type.get("name", "")
 		var subfolder = "spacetime_types"
 		if _type.has("table_name"):
+			if not _type.has("primary_key_name"): 
+				Spacetime.print_log(["Table %s has no primary key." % type_name,
+				"Only tables with a primary key can be generated."])				
+				continue
 			subfolder = "tables"
 		#If enum is not a rust sum type use enum
 		if _type.has("is_sum_type") and not _type.get("is_sum_type"):

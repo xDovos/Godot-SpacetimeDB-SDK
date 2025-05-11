@@ -117,6 +117,8 @@ func cleanup_unused_classes(dir_path: String = "res://schema", files: Array[Stri
 		if not full_path in files:
 			print_log("Removing file: %s" % [full_path])
 			DirAccess.remove_absolute(full_path)
+			if FileAccess.file_exists("%s.uid" % [full_path]):
+				DirAccess.remove_absolute("%s.uid" % [full_path])
 	var subfolders = dir.get_directories()
 	for folder in subfolders:
 		cleanup_unused_classes(dir_path + "/" + folder, files)
