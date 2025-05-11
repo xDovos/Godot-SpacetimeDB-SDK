@@ -1,6 +1,7 @@
 @tool
 class_name Codegen extends Node
-@export var OPTION_HANDLING = RustOptionHandling.OPTION_T_AS_T
+var OPTION_HANDLING: = RustOptionHandling.OPTION_T_AS_T
+var HIDE_PRIVATE_TABLES: = true
 const CODEGEN_FOLDER = "schema"
 
 const GDNATIVE_TYPES := {
@@ -81,6 +82,7 @@ func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 			var folder_path: String = "spacetime_types"
 			if type.has("table_name"):
 				if not type.has("primary_key_name"): continue
+				if HIDE_PRIVATE_TABLES and type.get("is_private", false): continue
 				folder_path = "tables"
 			var content: String = generate_struct_gdscript(type, module_name)
 			var output_file_name: String = "%s_%s.gd" % \
@@ -221,7 +223,8 @@ func generate_module_gdscript(schema: Dictionary) -> String:
 			if not _type.has("primary_key_name"): 
 				Spacetime.print_log(["Table %s has no primary key." % type_name,
 				"Only tables with a primary key can be generated."])				
-				continue
+				continue			
+			if HIDE_PRIVATE_TABLES and _type.get("is_private", false): continue
 			subfolder = "tables"
 		#If enum is not a rust sum type use enum
 		if _type.has("is_sum_type") and not _type.get("is_sum_type"):
@@ -373,6 +376,8 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		if primary_key.size() == 1:
 			types[ref].primary_key = int(primary_key[0])
 			types[ref].primary_key_name = types[ref].struct[primary_key[0]].name
+		if table_info.get("table_access", {}).has("Private"):
+			types[ref].is_private = true
 	
 	var reducers := []
 	for reducer_info in schema_reducers:
