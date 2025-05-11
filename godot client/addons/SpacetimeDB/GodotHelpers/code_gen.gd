@@ -30,6 +30,7 @@ var TYPE_MAP := {
 	"__identity__": "PackedByteArray",
 	"__connection_id__": "PackedByteArray",
 	"__timestamp_micros_since_unix_epoch__": "int",
+	"__time_duration_micros__": "int",
 }
 var META_TYPE_MAP := {
 	"I8": "i8",
@@ -45,6 +46,7 @@ var META_TYPE_MAP := {
 	"__identity__": "identity",
 	"__connection_id__": "connection_id",
 	"__timestamp_micros_since_unix_epoch__": "i64",
+	"__time_duration_micros__": "i64",
 }
 
 enum RustOptionHandling {
