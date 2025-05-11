@@ -68,6 +68,7 @@ func generate_code():
 	print_log("Start Code Generation...")
 	var codegen: Codegen = ui_panel.get_node("CodeGen")
 	var modules: Array[String] = []
+	var generated_files: Array[String] = ["res://%s/spacetime_modules.gd" % [Codegen.CODEGEN_FOLDER]]
 	for i in ui_panel.get_node("ScrollContainer/VBoxContainer").get_children():
 		var module_name = i.get_node("LineEdit").text
 		var uri = ui_panel.get_node("Uri").text + "/v1/database/" + module_name + "/schema?version=9"
@@ -75,9 +76,10 @@ func generate_code():
 		var result = await http_request.request_completed
 		if result[1] == 200:
 			var json = PackedByteArray(result[3]).get_string_from_utf8()
-			codegen._on_request_completed(json, module_name)
+			generated_files.append_array(codegen._on_request_completed(json, module_name))
 			modules.append(module_name)
 	codegen.generate_module_link(modules)
+	cleanup_unused_classes("res://%s" % Codegen.CODEGEN_FOLDER, generated_files)
 	get_editor_interface().get_resource_filesystem().scan()
 	print_log("Code Generation Complete!")
 
@@ -104,6 +106,20 @@ func save_codegen_data() -> void:
 		return
 	save_file.store_string(JSON.stringify(codegen_data))
 	save_file.close()
+
+func cleanup_unused_classes(dir_path: String = "res://schema", files: Array[String] = []) -> void:
+	var dir = DirAccess.open(dir_path)
+	if not dir: return	
+	print_log("File Cleanup:Scanning folder: " + dir_path)
+	for file in dir.get_files():
+		if not file.ends_with(".gd"): continue
+		var full_path = "%s/%s" % [dir_path, file]
+		if not full_path in files:
+			print_log("Removing file: %s" % [full_path])
+			DirAccess.remove_absolute(full_path)
+	var subfolders = dir.get_directories()
+	for folder in subfolders:
+		cleanup_unused_classes(dir_path + "/" + folder, files)
 
 func check_uri():
 	codegen_data.uri = ui_panel.get_node("Uri").text
