@@ -9,6 +9,7 @@ const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 var ui_panel: Control
 var http_request = HTTPRequest.new()
 var module_prefab:Control
+var code_gen: Codegen
 var codegen_data: Dictionary
 static var spacetime: Spacetime
 
@@ -66,9 +67,9 @@ func add_module(name: String = "EnterModuleName", fromLoad: bool = false):
 	new_module.show()
 
 func generate_code():
+	code_gen = Codegen.new()
 	clear_log()
 	print_log("Start Code Generation...")
-	var codegen: Codegen = ui_panel.get_node("CodeGen")
 	var modules: Array[String] = []
 	var generated_files: Array[String] = ["res://%s/spacetime_modules.gd" % [Codegen.CODEGEN_FOLDER]]
 	for i in ui_panel.get_node("ScrollContainer/VBoxContainer").get_children():
@@ -78,12 +79,13 @@ func generate_code():
 		var result = await http_request.request_completed
 		if result[1] == 200:
 			var json = PackedByteArray(result[3]).get_string_from_utf8()
-			generated_files.append_array(codegen._on_request_completed(json, module_name))
+			generated_files.append_array(code_gen._on_request_completed(json, module_name))
 			modules.append(module_name)
-	codegen.generate_module_link(modules)
+	code_gen.generate_module_link(modules)
 	cleanup_unused_classes("res://%s" % Codegen.CODEGEN_FOLDER, generated_files)
 	get_editor_interface().get_resource_filesystem().scan()
 	print_log("Code Generation Complete!")
+	code_gen.free()
 
 func load_codegen_data() -> void:
 	var load_data = FileAccess.open(SAVE_PATH, FileAccess.READ)
