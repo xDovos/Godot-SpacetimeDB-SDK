@@ -40,6 +40,8 @@ func _init(p_schema_path: String = "res://schema", p_debug_mode: bool = false) -
 	debug_mode = p_debug_mode
 	# Load table row schema scripts
 	_load_row_schemas("%s/tables" % p_schema_path)
+	# Load spacetime types
+	_load_row_schemas("%s/spacetime_types" % p_schema_path)
 	# Load core types if they are defined as Resources with scripts
 	_load_row_schemas("res://addons/SpacetimeDB/CoreTypes")
 
@@ -87,7 +89,7 @@ func _load_row_schemas(path: String) -> void:
 				var table_name : String = _get_schema_table_name(instance_for_name, base_name)
 
 				if not table_name.is_empty():
-					var lower_table_name = table_name.to_lower()
+					var lower_table_name = table_name.to_lower().replace("_", "")
 					if _possible_row_schemas.has(lower_table_name) and debug_mode:
 						push_warning("BSATNDeserializer: Overwriting schema for table '%s' (from %s)" % [table_name, script_path])
 					_possible_row_schemas[lower_table_name] = script
@@ -269,6 +271,7 @@ func _get_primitive_reader_from_bsatn_type(bsatn_type_str: String) -> Callable:
 		&"vec_u8": return Callable(self, "read_vec_u8")
 		&"bool": return Callable(self, "read_bool")
 		&"string": return Callable(self, "read_string_with_u32_len")
+		&"enum": return Callable(self, "_read_enum")
 		_: return Callable() # Return invalid Callable if type is not primitive/known
 
 # Determines the correct reader function (Callable) for a given property.
@@ -328,7 +331,6 @@ func _get_reader_callable_for_property(resource: Resource, prop: Dictionary) -> 
 
 	return reader_callable
 
-
 # Reads a value for a specific property using the determined reader.
 func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary):
 	var reader_callable := _get_reader_callable_for_property(resource, prop)
@@ -340,17 +342,16 @@ func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: D
 	# Call the determined reader function.
 	if reader_callable.get_object() == self:
 		var method_name = reader_callable.get_method()
-
+		
 		# Check if the method requires the full context (spb, resource, prop)
 		# Typically needed for recursive or context-aware readers.
-		if method_name == "_read_array" \
-		or method_name == "_read_nested_resource" \
-		or method_name == "_read_array_of_table_updates":
-			return reader_callable.call(spb, resource, prop) # Pass full context
-		else:
-			# Standard primitive/complex readers usually only need the buffer.
-			# This includes _read_update_status.
-			return reader_callable.call(spb) # Pass only spb
+		match method_name:
+			"_read_array", "_read_nested_resource", "_read_array_of_table_updates", "_read_enum":
+				return reader_callable.call(spb, resource, prop) # Pass full context
+			_: 
+				# Standard primitive/complex readers usually only need the buffer.
+				# This includes _read_update_status.
+				return reader_callable.call(spb) # Pass only spb		
 	else:
 		# Should not happen with Callables created above, but handle defensively
 		_set_error("Internal error: Invalid reader callable.", spb.get_position())
@@ -369,7 +370,7 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 		var resource_id = resource.resource_path if resource.resource_path else resource.get_class()
 		print("DEBUG: _populate_resource: Populating '%s' at pos %d. Properties: %s" % [resource_id, spb.get_position(), prop_names])
 
-
+	# prints("\nPopulating resource '%s' at pos %d" % [resource.resource_path, spb.get_position()])
 	for prop in properties:
 		# Skip properties not meant for storage (e.g., editor-only, getters/setters without backing field)
 		if not (prop.usage & PROPERTY_USAGE_STORAGE):
@@ -382,7 +383,7 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 
 		# Read the value using the universal reader function
 		var value = _read_value_for_property(spb, resource, prop)
-
+		# prints("Value for", prop_name, "is", value)
 		# Check for errors *after* attempting to read
 		if has_error():
 			# Error should have been set by the reader function or _read_value_for_property
@@ -422,7 +423,35 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 
 	return true # Successfully populated all properties
 
+# Populates the data property of a sumtype enum
+func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:	
+	var sum_type = resource.enum_sub_classes[resource.value]
+	var gd_sub_classes = resource.gd_sub_classes[resource.value]
+	if sum_type == &"enum":
+		resource.data = _read_enum(spb, resource, {"class_name": gd_sub_classes})
+		return true
+	var reader = _get_primitive_reader_from_bsatn_type(sum_type)
+	if reader.is_valid():
+		resource.data = reader.call(spb)
+		return true
+	var script: Script = _possible_row_schemas.get(gd_sub_classes.to_lower())
+	if script and script.can_instantiate():
+		resource.data = script.new()
+		_populate_resource_from_bytes(resource.data, spb)
+		return true
+	return false
+
 # --- Special Readers ---
+#Reads a sumtype enum
+func _read_enum(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> Resource:
+	var enum_variant: int = spb.get_u8()
+	var instance: Resource = null
+	var script: Script = _possible_row_schemas.get(prop.class_name.to_lower())
+	if script and script.can_instantiate():
+		instance = script.new()
+		instance.value = enum_variant
+		_populate_enum_data_from_bytes(instance, spb)
+	return instance
 
 # Reads an array property.
 func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> Array:
@@ -772,7 +801,7 @@ func parse_packet(buffer: PackedByteArray) -> Resource:
 		if not script or not script.can_instantiate():
 			_set_error("Failed to load or instantiate script for message type 0x%02X: %s" % [msg_type, resource_script_path], 1)
 			return null
-
+		
 		result_resource = script.new()
 		if not _populate_resource_from_bytes(result_resource, spb):
 			# Error already set by _populate_resource_from_bytes or its callees
