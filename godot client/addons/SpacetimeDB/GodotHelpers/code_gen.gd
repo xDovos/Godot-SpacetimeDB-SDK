@@ -1,5 +1,5 @@
 @tool
-class_name Codegen extends Node
+class_name Codegen extends Resource
 var OPTION_HANDLING: = RustOptionHandling.OPTION_T_AS_T
 var HIDE_PRIVATE_TABLES: = true
 const CODEGEN_FOLDER = "schema"
@@ -57,7 +57,7 @@ enum RustOptionHandling {
 }
 
 
-func _enter_tree():	
+func _init():
 	TYPE_MAP.merge(GDNATIVE_TYPES)
 
 func _on_request_completed(json_string: String, module_name: String) -> Array[String]:
@@ -74,6 +74,8 @@ func _on_request_completed(json_string: String, module_name: String) -> Array[St
 
 func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 	var module_name: String = schema.get("module", null)
+	module_name = module_name.replace("-", "_")
+	#module_name = module_name.to_lower()
 	var generated_files: Array[String] = []
 	for type in schema.get("types", []):
 		if type.has("gd_native"): continue
@@ -123,7 +125,7 @@ func generate_struct_gdscript(type, module_name) -> String:
 	var fields: Array = type.get("struct", [])
 	var meta_data: Array = []
 	var table_name: String = type.get("table_name", "")
-	var _class_name: String = module_name.to_pascal_case() + struct_name.to_pascal_case()
+	var _class_name: String = module_name.to_pascal_case() +"_"+ struct_name.to_pascal_case()
 	if table_name:
 		meta_data.append("set_meta('table_name', '%s')" % table_name)
 		var primary_key_name: String = type.get("primary_key_name", "")
@@ -135,6 +137,7 @@ func generate_struct_gdscript(type, module_name) -> String:
 	for field in fields:
 		var field_name: String = field.get("name", "")
 		var field_type: String = TYPE_MAP.get(field.get("type", ""), "")
+		#Spacetime.print_log(class_fields)
 		if field.has("is_option"):
 			match OPTION_HANDLING:
 				RustOptionHandling.IGNORE: continue
