@@ -249,7 +249,7 @@ func generate_module_gdscript(schema: Dictionary) -> String:
 			content += "enum %s {\n" % type_name.to_pascal_case()
 			for variant in _type.get("enum", []):
 				var variant_name: String = variant.get("name", "")
-				content += "\t%s,\n" % variant_name.to_pascal_case()
+				content += "\t_%s,\n" % variant_name.to_pascal_case()
 			content += "}\n"
 		else:
 			content += "const %s = preload('res://%s/%s/%s_%s.gd')\n" % \
