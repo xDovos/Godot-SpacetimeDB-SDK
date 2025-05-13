@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_u1py6"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_6b2w0"]
-[ext_resource type="Script" uid="uid://1mn1p6gla54" path="res://schema/tables/main_user.gd" id="3_xse7d"]
+[ext_resource type="Script" uid="uid://dnjil1pl2bjxe" path="res://schema/tables/main_user.gd" id="3_xse7d"]
 [ext_resource type="Script" uid="uid://c5heynag2ykqc" path="res://example_code/players.gd" id="5_4c4fm"]
 [ext_resource type="PackedScene" uid="uid://bn1hfkbb68wno" path="res://scenes/mouse.tscn" id="6_6b2w0"]
 
