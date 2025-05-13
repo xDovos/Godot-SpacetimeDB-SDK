@@ -82,7 +82,9 @@ func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 			var folder_path: String = "spacetime_types"
 			if type.has("table_name"):
 				if not type.has("primary_key_name"): continue
-				if HIDE_PRIVATE_TABLES and type.get("is_private", false): continue
+				if HIDE_PRIVATE_TABLES and type.get("is_private", false): 
+					Spacetime.print_log("Skipping private table %s" % type.get("name", ""))
+					continue
 				folder_path = "tables"
 			var content: String = generate_struct_gdscript(type, module_name)
 			var output_file_name: String = "%s_%s.gd" % \
