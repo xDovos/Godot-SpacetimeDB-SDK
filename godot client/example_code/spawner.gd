@@ -8,7 +8,7 @@ func _ready() -> void:
 	receiver.update.connect(receive_user)
 	#receiver.delete.connect(on_user_offline)
 	
-func on_user_offline(user_row:UserData):
+func on_user_offline(user_row:MainUserData):
 	var player = players.get(user_row.identity)
 	if player == null:return;
 	print(user_row.online)
@@ -18,7 +18,7 @@ func on_user_offline(user_row:UserData):
 	players[user_row.identity] = null
 	pass
 	
-func receive_user(user_row:UserData):
+func receive_user(user_row:MainUserData):
 	var player = players.get(user_row.identity)
 	#Spawn online players
 	if player == null:

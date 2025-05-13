@@ -66,7 +66,7 @@ func add_module(name: String = "EnterModuleName", fromLoad: bool = false):
 func generate_code():	
 	clear_log()
 	print_log("Start Code Generation...")
-	var codegen: Codegen = ui_panel.get_node("CodeGen")
+	var codegen: Codegen = Codegen.new()
 	var modules: Array[String] = []
 	var generated_files: Array[String] = ["res://%s/spacetime_modules.gd" % [Codegen.CODEGEN_FOLDER]]
 	for i in ui_panel.get_node("ScrollContainer/VBoxContainer").get_children():
@@ -83,6 +83,7 @@ func generate_code():
 	cleanup_unused_classes("res://%s" % Codegen.CODEGEN_FOLDER, generated_files)
 	get_editor_interface().get_resource_filesystem().scan()
 	print_log("Code Generation Complete!")
+	codegen.free()
 
 func load_codegen_data() -> void:
 	var load_data = FileAccess.open("res://codegen_data.dat", FileAccess.READ)
@@ -93,7 +94,7 @@ func load_codegen_data() -> void:
 		for module in codegen_data.modules.duplicate():
 			add_module(module, true)
 	else:
-		load_data.close()
+		#load_data.close()
 		codegen_data = {
 			"uri": "https://flametime.cfd/spacetime",
 			"modules": []

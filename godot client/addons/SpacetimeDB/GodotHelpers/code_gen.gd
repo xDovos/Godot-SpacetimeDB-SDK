@@ -1,5 +1,5 @@
 @tool
-class_name Codegen extends Node
+class_name Codegen extends Resource
 var OPTION_HANDLING: = RustOptionHandling.OPTION_T_AS_T
 var HIDE_PRIVATE_TABLES: = true
 const CODEGEN_FOLDER = "schema"
@@ -57,7 +57,7 @@ enum RustOptionHandling {
 }
 
 
-func _enter_tree():	
+func _init() -> void:
 	TYPE_MAP.merge(GDNATIVE_TYPES)
 
 func _on_request_completed(json_string: String, module_name: String) -> Array[String]:

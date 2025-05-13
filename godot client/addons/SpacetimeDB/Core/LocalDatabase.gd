@@ -65,8 +65,8 @@ func apply_database_update(db_update: DatabaseUpdateData):
 		apply_table_update(table_update)
 
 func apply_table_update(table_update: TableUpdateData):
-	var table_name_lower := table_update.table_name.to_lower()
-
+	var table_name_lower := table_update.table_name.to_lower().replace("_","")
+	#print(table_name_lower)
 	if not _tables.has(table_name_lower):
 		printerr("LocalDatabase: Received update for unknown table '", table_update.table_name, "'")
 		# Optionally create the table entry: _tables[table_name_lower] = {}
@@ -78,10 +78,10 @@ func apply_table_update(table_update: TableUpdateData):
 		return
 
 	var table_dict: Dictionary = _tables[table_name_lower]
-
+	
 	# Process deletes
 	for deleted_row: Resource in table_update.deletes:
-		#print(table_update.deletes.size())
+		#
 		var pk_value = deleted_row.get(pk_field)
 		if table_dict.has(pk_value):
 			table_dict.erase(pk_value)
@@ -123,8 +123,8 @@ func get_all_rows(table_name: String) -> Array[Resource]:
 		return []
 
 # Example specific getter
-func get_user(identity_bytes: PackedByteArray) -> User:
+func get_user(identity_bytes: PackedByteArray) -> MainUser:
 	var user_res = get_row("user", identity_bytes)
-	if user_res is User:
+	if user_res is MainUser:
 		return user_res
 	return null

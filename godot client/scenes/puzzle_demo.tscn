@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_u1py6"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_6b2w0"]
-[ext_resource type="Script" uid="uid://bfxhxk3ye7ndm" path="res://schema/User.gd" id="4_bm7eo"]
+[ext_resource type="Script" uid="uid://1mn1p6gla54" path="res://schema/tables/main_user.gd" id="3_xse7d"]
 [ext_resource type="Script" uid="uid://c5heynag2ykqc" path="res://scenes/players.gd" id="5_4c4fm"]
 [ext_resource type="PackedScene" uid="uid://bn1hfkbb68wno" path="res://scenes/mouse.tscn" id="6_6b2w0"]
 
@@ -10,17 +10,17 @@
 script/source = "extends Node
 
 @export var receiver:RowReceiver;
-var local_user:User;
+var local_user:MainUser;
 var users = {}
-signal user_join(user:User)
-signal user_leave(user:User)
+signal user_join(user:MainUser)
+signal user_leave(user:MainUser)
 
 func _ready() -> void:
 	receiver.update.connect(on_user_received)
 	receiver.delete.connect(on_user_leave)
 	pass;
 	
-func on_user_received(user:User):
+func on_user_received(user:MainUser):
 	if local_user == null and user.identity == SpacetimeDB.get_local_identity().identity:
 		print(\"Set local user\", user.identity.hex_encode())
 		local_user = user;
@@ -36,7 +36,7 @@ func on_user_received(user:User):
 		users[user.identity] = user;
 	pass;
 
-func on_user_leave(user:User):
+func on_user_leave(user:MainUser):
 	print(\"Leave: \", user.identity.hex_encode())
 	user_leave.emit(user)
 	pass;
@@ -56,11 +56,11 @@ script = ExtResource("1_u1py6")
 
 [node name="lobby_holder" type="Node" parent="." node_paths=PackedStringArray("receiver")]
 script = SubResource("GDScript_xse7d")
-receiver = NodePath("Receiver [User]")
+receiver = NodePath("Receiver [main_user]")
 
-[node name="Receiver [User]" type="Node" parent="lobby_holder"]
+[node name="Receiver [main_user]" type="Node" parent="lobby_holder"]
 script = ExtResource("3_6b2w0")
-data_to_receive = ExtResource("4_bm7eo")
+data_to_receive = ExtResource("3_xse7d")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 
 [node name="Players" type="Node2D" parent="."]

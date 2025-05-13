@@ -18,13 +18,13 @@ func _ready() -> void:
 	set_process_input(get_meta("is_local"))
 
 func test_struct():
-	var test_one := Message.new()
+	var test_one := MainMessage.new()
 	test_one.int_value = 55
 	test_one.string_value = "Hello from Godot"
 	test_one.int_vec = [1,2,3]
 	test_one.string_vec = ["one", "two", "three"]
 		
-	var test := Message.new()
+	var test := MainMessage.new()
 	test.int_value = 26
 	test.string_value = "Hello from Godot second"
 	test.int_vec = [3,2,1]
@@ -55,7 +55,7 @@ func _input(event: InputEvent) -> void:
 		#test_bytes()
 		
 	
-func user_data_received(user_data:UserData):
+func user_data_received(user_data:MainUserData):
 	if get_meta("id") != user_data.identity:return
 	$MeshInstance3D.get_surface_override_material(0).albedo_color = user_data.color
 	$Label3D.text = str(user_data.name)

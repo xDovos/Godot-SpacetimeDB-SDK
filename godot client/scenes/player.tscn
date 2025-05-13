@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://tvakv4fnjvt0" path="res://example_code/player.gd" id="1_3vyb7"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="2_qhqgy"]
-[ext_resource type="Script" uid="uid://bw23215cxrv2d" path="res://schema/UserData.gd" id="3_dqkch"]
+[ext_resource type="Script" uid="uid://d3vaidrq06ff4" path="res://schema/tables/main_user_data.gd" id="3_qhqgy"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1bvp3"]
 
@@ -14,7 +14,7 @@ vertex_color_use_as_albedo = true
 
 [node name="CharacterBody3D" type="CharacterBody3D" node_paths=PackedStringArray("receiver")]
 script = ExtResource("1_3vyb7")
-receiver = NodePath("Receiver [UserData]")
+receiver = NodePath("Receiver [main_user_data]")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_1bvp3")
@@ -29,7 +29,7 @@ pixel_size = 0.02
 billboard = 1
 text = "Hello world"
 
-[node name="Receiver [UserData]" type="Node" parent="."]
+[node name="Receiver [main_user_data]" type="Node" parent="."]
 script = ExtResource("2_qhqgy")
-data_to_receive = ExtResource("3_dqkch")
+data_to_receive = ExtResource("3_qhqgy")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"

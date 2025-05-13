@@ -628,7 +628,7 @@ func _read_table_update_instance(spb: StreamPeerBuffer, resource: TableUpdateDat
 	var all_parsed_deletes: Array[Resource] = []
 	var all_parsed_inserts: Array[Resource] = []
 
-	var table_name_lower := resource.table_name.to_lower()
+	var table_name_lower := resource.table_name.to_lower().replace("_","")
 	var row_schema_script: Script = _possible_row_schemas.get(table_name_lower)
 
 	if not row_schema_script and updates_count > 0:

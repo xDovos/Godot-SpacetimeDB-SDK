@@ -8,7 +8,7 @@ func _ready() -> void:
 	pass 
 
 
-func spawn(user:User):
+func spawn(user:MainUser):
 	var player = player_prefab.instantiate()
 	player.set_meta("id", user.identity)
 	player.set_meta("local", user.identity == SpacetimeDB.get_local_identity().identity)
@@ -16,7 +16,7 @@ func spawn(user:User):
 	add_child(player)
 	pass;
 	
-func despawn(user:User):
+func despawn(user:MainUser):
 	var player = get_node_or_null(str(user.identity.hex_encode()))
 	if player != null:player.queue_free()
 	pass;

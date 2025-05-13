@@ -9,7 +9,7 @@ func _ready() -> void:
 	set_process(get_meta("local"))
 	pass # Replace with function body.
 
-func user_data_received(user_data:UserData):
+func user_data_received(user_data:MainUserData):
 	if get_meta("id") != user_data.identity:return
 	last_position = Vector2(user_data.last_position.x, user_data.last_position.y)
 	#global_position = last_position
