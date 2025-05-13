@@ -30,18 +30,9 @@ func test_struct():
 	test.int_vec = [3,2,1]
 	test.string_vec = ["Hello", "Elden", "Ring"]
 		
-	var id = SpacetimeDB.call_reducer("test_struct", [test_one, test])
-	var result = await SpacetimeDB.wait_for_reducer_response(id)
-	print(result)
+	SpacetimeModule.Main.Reducers.test_struct(test_one, test)
 	pass;
 
-func test_bytes():
-	var image = Image.load_from_file("res://icon.svg")
-	#print(image.data)
-	var id = SpacetimeDB.call_reducer("save_my_bytes", [image.get_data().slice(0, image.get_data_size()/4)])
-	var result = await SpacetimeDB.wait_for_reducer_response(id)
-	print(result)
-	pass;
 	
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -49,7 +40,7 @@ func _input(event: InputEvent) -> void:
 		print(res)
 		
 	if event.is_action_pressed("ui_accept"):
-		SpacetimeDB.unsubscribe(SpacetimeDB.current_subscriptions.keys()[1])
+		test_struct()
 		
 	
 func user_data_received(user_data:MainUserData):
@@ -66,8 +57,7 @@ func _process(delta: float) -> void:
 	if last_local_input == input_dir:
 		return;
 	last_local_input = input_dir
-	#var id = 
-	MainModule.move_user(input_dir, global_position)
+	SpacetimeModule.Main.Reducers.move_user(input_dir, global_position)
 	pass;
 	
 func _physics_process(delta: float) -> void:

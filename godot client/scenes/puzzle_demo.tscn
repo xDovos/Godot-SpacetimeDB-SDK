@@ -1,53 +1,11 @@
 [gd_scene load_steps=7 format=3 uid="uid://bbffb4bvr3yin"]
 
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_u1py6"]
+[ext_resource type="Script" uid="uid://dem1ds2t7l6l4" path="res://scenes/lobby_holder.gd" id="2_6b2w0"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_6b2w0"]
 [ext_resource type="Script" uid="uid://dnjil1pl2bjxe" path="res://schema/tables/main_user.gd" id="3_xse7d"]
 [ext_resource type="Script" uid="uid://c5heynag2ykqc" path="res://example_code/players.gd" id="5_4c4fm"]
 [ext_resource type="PackedScene" uid="uid://bn1hfkbb68wno" path="res://scenes/mouse.tscn" id="6_6b2w0"]
-
-[sub_resource type="GDScript" id="GDScript_xse7d"]
-script/source = "extends Node
-
-@export var receiver:RowReceiver;
-var local_user:MainUser;
-var users = {}
-signal user_join(user:MainUser)
-signal user_leave(user:MainUser)
-
-func _ready() -> void:
-	receiver.update.connect(on_user_received)
-	receiver.delete.connect(on_user_leave)
-	pass;
-	
-func on_user_received(user:MainUser):
-	if local_user == null and user.identity == SpacetimeDB.get_local_identity().identity:
-		print(\"Set local user\", user.identity.hex_encode())
-		local_user = user;
-		print(\"Damage: \")
-		print(\"Amount: \",user.damage.amount)
-		print(\"Source: \", user.damage.int_vec)
-		
-		subscibe_on_lobby(user.lobby_id)
-	else:
-		if users.has(user.identity):return;
-		print(\"Join: \", user.identity.hex_encode())
-		user_join.emit(user)
-		users[user.identity] = user;
-	pass;
-
-func on_user_leave(user:MainUser):
-	print(\"Leave: \", user.identity.hex_encode())
-	user_leave.emit(user)
-	pass;
-	
-func subscibe_on_lobby(lobby_to_sub:int):
-	var query = [
-		\"SELECT * FROM user WHERE online == true AND lobby_id == \" + str(lobby_to_sub), 
-		\"SELECT * FROM user_data WHERE lobby_id == \" + str(lobby_to_sub),
-	]
-	SpacetimeDB.subscribe(query)
-"
 
 [node name="Node2D" type="Node2D"]
 
@@ -55,7 +13,7 @@ func subscibe_on_lobby(lobby_to_sub:int):
 script = ExtResource("1_u1py6")
 
 [node name="lobby_holder" type="Node" parent="." node_paths=PackedStringArray("receiver")]
-script = SubResource("GDScript_xse7d")
+script = ExtResource("2_6b2w0")
 receiver = NodePath("Receiver [main_user]")
 
 [node name="Receiver [main_user]" type="Node" parent="lobby_holder"]

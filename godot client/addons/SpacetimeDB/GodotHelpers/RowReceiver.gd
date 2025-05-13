@@ -49,5 +49,3 @@ func _on_delete(table_name: String, row: Resource):
 	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
 		return
 	delete.emit(row)
-	pass;
-	
