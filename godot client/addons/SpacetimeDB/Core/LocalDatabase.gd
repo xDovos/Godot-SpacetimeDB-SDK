@@ -10,7 +10,7 @@ var _primary_key_cache: Dictionary = {}
 
 # Signals (if needed, better if this is a Node or uses a SignalBus Autoload)
 signal row_inserted(table_name: String, row: Resource)
-signal row_updated(table_name: String, row: Resource)
+signal row_updated(table_name: String, row: Resource, previous_row: Resource)
 signal row_deleted(table_name: String, row: Resource) 
 signal row_deleted_key(table_name: String, primary_key) 
 
@@ -78,28 +78,35 @@ func apply_table_update(table_update: TableUpdateData):
 		return
 
 	var table_dict: Dictionary = _tables[table_name_lower]
-
-	# Process deletes
-	for deleted_row: Resource in table_update.deletes:
-		#print(table_update.deletes.size())
-		var pk_value = deleted_row.get(pk_field)
-		if table_dict.has(pk_value):
-			table_dict.erase(pk_value)
-			row_deleted_key.emit(table_update.table_name, pk_value)
-			row_deleted.emit(table_update.table_name, deleted_row)
-		else:
-			push_warning("LocalDatabase: Tried to delete row with PK '", pk_value, "' from table '", table_update.table_name, "' but it wasn't found.")
+	
+	# Keep track of inserted PKs to check for proper deletes vs insert-delete pairs
+	var inserted_pks: Array[Variant] = []
 
 	# Process inserts/updates
 	for inserted_row: Resource in table_update.inserts:
 		var pk_value = inserted_row.get(pk_field)
+		inserted_pks.append(pk_value)
 		var is_update := table_dict.has(pk_value)
+
+		# Store the previous row in case it's an update
+		var prev_row: Resource = table_dict[pk_value] if is_update else null
 		table_dict[pk_value] = inserted_row # Add or overwrite
 
 		if is_update:
-			emit_signal("row_updated", table_update.table_name, inserted_row)
+			row_updated.emit(table_update.table_name, inserted_row, prev_row)
 		else:
-			emit_signal("row_inserted", table_update.table_name, inserted_row)
+			row_inserted.emit(table_update.table_name, inserted_row)
+
+	# Process deletes
+	for deleted_row: Resource in table_update.deletes:
+		var pk_value = deleted_row.get(pk_field)
+		if table_dict.has(pk_value):
+			if not inserted_pks.has(pk_value): ## Only emit deletes if the deleted PK wasn't re-inserted in the current transaction
+				table_dict.erase(pk_value)
+				row_deleted_key.emit(table_update.table_name, pk_value)
+				row_deleted.emit(table_update.table_name, deleted_row)
+		else:
+			push_warning("LocalDatabase: Tried to delete row with PK '", pk_value, "' from table '", table_update.table_name, "' but it wasn't found.")
 
 
 # --- Access Methods ---
@@ -123,8 +130,8 @@ func get_all_rows(table_name: String) -> Array[Resource]:
 		return []
 
 # Example specific getter
-func get_user(identity_bytes: PackedByteArray) -> User:
-	var user_res = get_row("user", identity_bytes)
-	if user_res is User:
-		return user_res
-	return null
+# func get_user(identity_bytes: PackedByteArray) -> User:
+	#var user_res = get_row("user", identity_bytes)
+	#if user_res is User:
+		#return user_res
+	#return null

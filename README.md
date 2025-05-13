@@ -136,7 +136,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
     *   **A) Using `RowReceiver` Node (Recommended for specific tables):**
         1.  Add a `RowReceiver` node to your scene.
         2.  In the Inspector, set `Data To Receive` to your schema resource (e.g., `PlayerData.tres` or `.gd`).
-        3.  Connect to its `update(row)` and `delete(row)` signals.
+        3.  Connect to its `insert(row)`, `update(row, previous)` and `delete(row)` signals.
 
         ```gdscript
         # Script needing player updates
@@ -144,15 +144,24 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
 
         func _ready():
             if player_receiver:
+                player_receiver.insert.connect(_on_player_receiver_insert)
+                # Optionally, if you want to process inserts the same way as updates, you could do:
+                # player_receiver.insert.connect(on_player_receiver_update.bind(null))
                 player_receiver.update.connect(_on_player_receiver_update)
                 player_receiver.delete.connect(_on_player_receiver_delete)
             else:
                 printerr("Player receiver not set!")
 
-        func _on_player_receiver_update(player: PlayerData):
-            # Player inserted or updated
+        func _on_player_receiver_insert(player: PlayerData):
+            # Player inserted
+            print("Receiver Insert: Player %s Health: %d" % [player.name, player.health])
+            # ... spawn player visual ...
+
+        func _on_player_receiver_update(player: PlayerData, previous_row: PlayerData):
+            # Player updated
             print("Receiver Update: Player %s Health: %d" % [player.name, player.health])
-            # ... update or spawn player visual ...
+            print("Receiver Previous Value: Player %s Health: %d" % [previous_row.name, previous_row.health])
+            # ... update player visual ...
 
         func _on_player_receiver_delete(player: PlayerData):
             # Player deleted

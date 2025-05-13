@@ -5,8 +5,9 @@ class_name RowReceiver
 
 @export var data_to_receive: Resource : set=on_set;
 
-signal update(row)
-signal delete(row)
+signal insert(row: Resource)
+signal update(row: Resource, prev: Resource)
+signal delete(row: Resource)
 
 func on_set(schema:Resource):
 	if schema != null:
@@ -21,7 +22,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return;
 	SpacetimeDB.row_inserted.connect(_on_insert)
-	SpacetimeDB.row_updated.connect(_on_insert)
+	SpacetimeDB.row_updated.connect(_on_update)
 	SpacetimeDB.row_deleted.connect(_on_delete)
 
 	if data_to_receive:
@@ -39,14 +40,18 @@ func _ready() -> void:
 	for i in data:
 		_on_insert(data_to_receive.get_meta("table_name"), i)
 	
-func _on_insert(table_name: String, row: Resource):
+func _on_insert(_table_name: String, row: Resource):
 	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
 		return
-	update.emit(row)
+	insert.emit(row)
 
-func _on_delete(table_name: String, row: Resource):
+func _on_update(_table_name: String, row: Resource, previous: Resource):
+	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
+		return
+	update.emit(row, previous)
+
+func _on_delete(_table_name: String, row: Resource):
 	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
 		return
 	delete.emit(row)
-	pass;
 	
