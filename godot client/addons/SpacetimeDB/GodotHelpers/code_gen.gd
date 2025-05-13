@@ -203,8 +203,15 @@ func generate_enum_gdscript(type, module_name) -> String:
 		content += "\t\t%d: return \"%s\"\n" % [i, variants[i].get("name", "")]
 	content += "\t\t_:\n" + \
 	"\t\t\tprinterr(\"Enum does not have value for %d. This is out of bounds.\")\n" + \
-	"\t\t\treturn \"Unknown\"\n\n" + \
-	"static func create(type: int, _data: Variant = null) -> %s:\n" % _class_name + \
+	"\t\t\treturn \"Unknown\"\n\n"	
+	for v in variants:
+		var variant_name: String = v.get("name", "")
+		var variant_type: String = TYPE_MAP.get(v.get("type", ""), "int")
+		if v.has("is_array"):
+			variant_type = "Array[%s]" % variant_type
+		content += "func get_%s() -> %s:\n" % [variant_name.to_snake_case(), variant_type] + \
+		"\treturn data\n\n"
+	content +="static func create(type: int, _data: Variant = null) -> %s:\n" % _class_name + \
 	"\tvar result = %s.new()\n" % _class_name + \
 	"\tresult.value = type\n" + \
 	"\tresult.data = _data\n" + \
