@@ -121,10 +121,3 @@ func get_all_rows(table_name: String) -> Array[Resource]:
 		return typed_result_array
 	else:
 		return []
-
-# Example specific getter
-func get_user(identity_bytes: PackedByteArray) -> MainUser:
-	var user_res = get_row("user", identity_bytes)
-	if user_res is MainUser:
-		return user_res
-	return null
