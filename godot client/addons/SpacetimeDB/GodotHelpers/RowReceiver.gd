@@ -36,6 +36,7 @@ func _ready() -> void:
 		await SpacetimeDB.database_initialized
 	
 	var data = SpacetimeDB.get_local_database().get_all_rows(data_to_receive.get_meta("table_name"))
+
 	for i in data:
 		_on_insert(data_to_receive.get_meta("table_name"), i)
 	

@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://bn1hfkbb68wno"]
 
 [ext_resource type="Texture2D" uid="uid://b6djqj4ukqhqb" path="res://icons/mouse.png" id="1_iog6k"]
-[ext_resource type="Script" uid="uid://c1k3bu0e3ecgb" path="res://scenes/mouse.gd" id="2_dexx5"]
+[ext_resource type="Script" uid="uid://c1k3bu0e3ecgb" path="res://example_code/mouse.gd" id="2_dexx5"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_j7mu1"]
 [ext_resource type="Script" uid="uid://d3vaidrq06ff4" path="res://schema/tables/main_user_data.gd" id="4_iog6k"]
 

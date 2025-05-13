@@ -45,14 +45,11 @@ func test_bytes():
 	
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		#Reducer without args
-		var id = SpacetimeDB.call_reducer("change_color_random")
-		#var result = await SpacetimeDB.wait_for_reducer_response(id)
-		#print(result)
+		var res = await MainModule.change_color_random()
+		print(res)
+		
 	if event.is_action_pressed("ui_accept"):
 		SpacetimeDB.unsubscribe(SpacetimeDB.current_subscriptions.keys()[1])
-		#test_struct()
-		#test_bytes()
 		
 	
 func user_data_received(user_data:MainUserData):
@@ -70,7 +67,7 @@ func _process(delta: float) -> void:
 		return;
 	last_local_input = input_dir
 	#var id = 
-	SpacetimeDB.call_reducer("move_user", [input_dir, global_position])
+	MainModule.move_user(input_dir, global_position)
 	pass;
 	
 func _physics_process(delta: float) -> void:

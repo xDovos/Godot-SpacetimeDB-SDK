@@ -22,7 +22,7 @@ func receive_user(user_row:MainUserData):
 	var player = players.get(user_row.identity)
 	#Spawn online players
 	if player == null:
-		#print("Spawn player ", user_row.identity == SpacetimeDB.get_local_identity().identity)
+		print("Spawn player ", user_row.identity == SpacetimeDB.get_local_identity().identity)
 		var new_player := player_scene.instantiate()
 		new_player.set_meta("id", user_row.identity)
 		if user_row.identity == SpacetimeDB.get_local_identity().identity:
