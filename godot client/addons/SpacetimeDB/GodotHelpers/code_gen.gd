@@ -1,5 +1,5 @@
 @tool
-class_name Codegen extends Resource
+class_name Codegen extends Node
 var OPTION_HANDLING: = RustOptionHandling.OPTION_T_AS_T
 var HIDE_PRIVATE_TABLES: = true
 const CODEGEN_FOLDER = "schema"
@@ -57,7 +57,7 @@ enum RustOptionHandling {
 }
 
 
-func _init():
+func _enter_tree():	
 	TYPE_MAP.merge(GDNATIVE_TYPES)
 
 func _on_request_completed(json_string: String, module_name: String) -> Array[String]:
@@ -74,8 +74,6 @@ func _on_request_completed(json_string: String, module_name: String) -> Array[St
 
 func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 	var module_name: String = schema.get("module", null)
-	module_name = module_name.replace("-", "_")
-	#module_name = module_name.to_lower()
 	var generated_files: Array[String] = []
 	for type in schema.get("types", []):
 		if type.has("gd_native"): continue
@@ -117,6 +115,13 @@ func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 	if file:
 		file.store_string(module_content)
 		generated_files.append(output_file_path)
+	var reducers_content: String = generate_reducer_gdscript(schema)
+	output_file_name = "module_%s_reducers.gd" % module_name.to_snake_case()
+	output_file_path = "res://%s/%s" % [CODEGEN_FOLDER, output_file_name]
+	file = FileAccess.open(output_file_path, FileAccess.WRITE)
+	if file:
+		file.store_string(reducers_content)
+		generated_files.append(output_file_path)
 	Spacetime.print_log(["Generated files:\n", "\n".join(generated_files)])
 	return generated_files
 
@@ -125,7 +130,7 @@ func generate_struct_gdscript(type, module_name) -> String:
 	var fields: Array = type.get("struct", [])
 	var meta_data: Array = []
 	var table_name: String = type.get("table_name", "")
-	var _class_name: String = module_name.to_pascal_case() +"_"+ struct_name.to_pascal_case()
+	var _class_name: String = module_name.to_pascal_case() + struct_name.to_pascal_case()
 	if table_name:
 		meta_data.append("set_meta('table_name', '%s')" % table_name)
 		var primary_key_name: String = type.get("primary_key_name", "")
@@ -137,7 +142,6 @@ func generate_struct_gdscript(type, module_name) -> String:
 	for field in fields:
 		var field_name: String = field.get("name", "")
 		var field_type: String = TYPE_MAP.get(field.get("type", ""), "")
-		#Spacetime.print_log(class_fields)
 		if field.has("is_option"):
 			match OPTION_HANDLING:
 				RustOptionHandling.IGNORE: continue
@@ -177,7 +181,7 @@ func generate_enum_gdscript(type, module_name) -> String:
 		if v.has("is_array"):
 			variant_types += "&'vec_%s', " % _type
 		elif _type.is_empty():
-			variant_types += "'', "
+			variant_types += "&'', "
 		else:
 			variant_types += "&'%s', " % _type
 	variant_types = variant_types.left(-2) + "]"
@@ -242,7 +246,13 @@ func generate_module_gdscript(schema: Dictionary) -> String:
 			content += "const %s = preload('res://%s/%s/%s_%s.gd')\n" % \
 			[type_name.to_pascal_case(), CODEGEN_FOLDER, subfolder, 
 			module_name.to_snake_case(), type_name.to_snake_case()]
-	content += "\n"
+	content += "const Reducers = preload('res://%s/module_%s_reducers.gd')\n\n" % [CODEGEN_FOLDER, 
+		module_name.to_snake_case()]
+	content += generate_reducer_gdscript(schema)
+	return content
+
+func generate_reducer_gdscript(schema: Dictionary) -> String:
+	var content: String
 	for reducer in schema.get("reducers", []):
 		var params_str: String = ""
 		for param in reducer.get("params", []):
@@ -266,6 +276,7 @@ func generate_module_gdscript(schema: Dictionary) -> String:
 		[reducer_name, param_names, param_types] + \
 		"\tvar result = await SpacetimeDB.wait_for_reducer_response(id)\n" + \
 		"\tcb.call(result)\n\n"
+	content = content.left(-2)
 	return content
 
 func generate_module_link(modules: Array[String]) -> void:
@@ -416,7 +427,7 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		})
 
 	var parsed_schema = {
-		"module": module_name,
+		"module": module_name.to_pascal_case(),
 		"types": types,
 		"reducers": reducers,
 		"type_map": TYPE_MAP,
