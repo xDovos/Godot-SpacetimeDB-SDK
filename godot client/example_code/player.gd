@@ -30,7 +30,9 @@ func test_struct():
 	test.int_vec = [3,2,1]
 	test.string_vec = ["Hello", "Elden", "Ring"]
 		
-	SpacetimeModule.Main.Reducers.test_struct(test_one, test)
+	var res = await SpacetimeModule.Main.Reducers.test_struct(test_one, test, func(_t): 
+		print("Result:", _t)
+		pass)
 	pass;
 
 	
