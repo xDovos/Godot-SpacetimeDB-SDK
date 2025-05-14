@@ -3,7 +3,10 @@ extends Node3D
 func _ready():
 	SpacetimeDB.connect_db(
 		"https://flametime.cfd/spacetime", #WARNING <--- replace it with your url
-		"main", #WARNING <--- replace it with your database
+		[
+			"main", 
+			"blackhole"
+		],
 		SpacetimeDBConnection.CompressionPreference.NONE,
 		true, #WARNING <--- one time token. New window = new token
 		false #WARNING <--- debug mode, print logs
@@ -23,7 +26,7 @@ func subsribe_self_updates():
 	var query_string = [
 		"SELECT * FROM user WHERE identity == '0x%s'" % id.hex_encode()
 		]
-	var sub_req_id = SpacetimeDB.subscribe(query_string)
+	var sub_req_id = SpacetimeDB.subscribe("main", query_string)
 	if sub_req_id < 0:
 		printerr("Game: Failed to send subscription request.")
 	else:

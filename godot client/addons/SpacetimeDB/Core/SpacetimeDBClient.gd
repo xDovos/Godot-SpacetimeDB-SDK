@@ -2,7 +2,7 @@ class_name SpacetimeDBClient extends Node
 
 # --- Configuration ---
 @export var base_url: String = "http://127.0.0.1:3000"
-@export var database_name: String = "quickstart-chat" # Example
+@export var database_names: Array[String] = ["quickstart-chat"] # Example
 @export var schema_path: String = "res://schema"
 @export var auto_connect: bool = false
 @export var auto_request_token: bool = true
@@ -15,7 +15,7 @@ class_name SpacetimeDBClient extends Node
 var pending_subscriptions:Dictionary[int, PackedStringArray]
 
 # --- Components ---
-var _connection: SpacetimeDBConnection
+var _connections: Dictionary[String, SpacetimeDBConnection]
 var _deserializer: BSATNDeserializer
 var _serializer: BSATNSerializer
 var _local_db: LocalDatabase
@@ -77,12 +77,14 @@ func initialize_and_connect():
 	add_child(_rest_api)
 
 	# 4. Initialize Connection Handler
-	_connection = SpacetimeDBConnection.new(compression, debug_mode)
-	_connection.connected.connect(func(): connected.emit())
-	_connection.disconnected.connect(func(): disconnected.emit())
-	_connection.connection_error.connect(func(c, r): connection_error.emit(c, r))
-	_connection.message_received.connect(_on_websocket_message_received)
-	add_child(_connection)
+	for i in database_names:
+		var _connection = SpacetimeDBConnection.new(compression, debug_mode)
+		#_connection.connected.connect(func(): connected.emit())
+		#_connection.disconnected.connect(func(): disconnected.emit())
+		#_connection.connection_error.connect(func(c, r): connection_error.emit(c, r))
+		_connection.message_received.connect(_on_websocket_message_received)
+		add_child(_connection)
+		_connections[i] = _connection
 
 	_is_initialized = true
 	print_log("SpacetimeDBClient: Initialization complete.")
@@ -125,11 +127,16 @@ func _on_token_received(received_token: String):
 	_save_token(received_token)
 	var conn_id = _generate_connection_id()
 	# Pass token to components that need it
-	_connection.set_token(self._token)
+	
 	_rest_api.set_token(self._token) # REST API might also need it
-
+	
+	var index = 0
+	for i in _connections:
+		_connections[i].set_token(self._token)
+		_connections[i].connect_to_database(base_url, database_names[index], conn_id, compression)
+		index += 1;
 	# Now attempt to connect WebSocket
-	_connection.connect_to_database(base_url, database_name, conn_id, compression)
+	
 
 func _on_token_request_failed(error_code: int, response_body: String):
 	printerr("SpacetimeDBClient: Failed to acquire token. Cannot connect.")
@@ -213,24 +220,24 @@ func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
 
 # --- Public API ---
 
-func connect_db(host_url:String, database_name:String, compression:SpacetimeDBConnection.CompressionPreference, one_time_token:bool = false, debug_mode:bool = false):
+func connect_db(host_url:String, database_names:Array[String], compression:SpacetimeDBConnection.CompressionPreference, one_time_token:bool = false, debug_mode:bool = false):
 	self.base_url = host_url;
-	self.database_name = database_name;
+	self.database_names = database_names;
 	self.compression = compression
 	self.one_time_token = one_time_token
 	self.debug_mode = debug_mode
 	if not _is_initialized:
 		initialize_and_connect()
-	elif not _connection.is_connected_db():
+	#elif not _connections[0].is_connected_db():
 		# Already initialized, just need token and connect
-		_load_token_or_request()
+	#	_load_token_or_request()
 
 func disconnect_db():
-	if _connection:
-		_connection.disconnect_from_server()
+	for i in _connections:
+		_connections[i].disconnect_from_server()
 
 func is_connected_db() -> bool:
-	return _connection and _connection.is_connected_db()
+	return !_connections.is_empty()
 
 # Gets the local database instance for querying
 func get_local_database() -> LocalDatabase:
@@ -239,7 +246,7 @@ func get_local_database() -> LocalDatabase:
 func get_local_identity() -> IdentityTokenData:
 	return _local_identity
 	
-func subscribe(queries: PackedStringArray) -> int:
+func subscribe(module:String, queries: PackedStringArray) -> int:
 	if not is_connected_db():
 		printerr("SpacetimeDBClient: Cannot subscribe_bin, not connected.")
 		return -1 # Indicate error
@@ -260,7 +267,7 @@ func subscribe(queries: PackedStringArray) -> int:
 	if _serializer.has_error():
 		printerr("SpacetimeDBClient: Failed to serialize SubscribeMulti message: %s" % _serializer.get_last_error())
 		return -1
-
+	var _connection = _connections[module]
 	# 4. Send the binary message via WebSocket
 	if _connection and _connection._websocket:
 		var err := _connection.send_bytes(message_bytes)
@@ -276,7 +283,7 @@ func subscribe(queries: PackedStringArray) -> int:
 		return -1
 
 #WARNING Doesnt work for now
-func unsubscribe(id:int) -> bool:
+func unsubscribe(module:String, id:int) -> bool:
 	if not is_connected_db():
 		printerr("SpacetimeDBClient: Cannot subscribe_bin, not connected.")
 		return false # Indicate error
@@ -294,6 +301,8 @@ func unsubscribe(id:int) -> bool:
 		return false
 
 	# 4. Send the binary message via WebSocket
+	var _connection = _connections[module]
+	
 	if _connection and _connection._websocket:
 		var err := _connection.send_bytes(message_bytes)
 		if err != OK:
@@ -308,7 +317,7 @@ func unsubscribe(id:int) -> bool:
 		return false
 	pass
 	
-func call_reducer(reducer_name: String, args: Array = [], types: Array = []) -> int:
+func call_reducer(module:String, reducer_name: String, args: Array = [], types: Array = []) -> int:
 	if not is_connected_db():
 		#print_logerr("SpacetimeDBClient: Cannot call reducer, not connected.")
 		return -1 # Indicate error
@@ -327,7 +336,7 @@ func call_reducer(reducer_name: String, args: Array = [], types: Array = []) -> 
 		BSATNSerializer.CLIENT_MSG_VARIANT_TAG_CALL_REDUCER,
 		call_data
 		)
-	
+	var _connection = _connections[module]
 	# Access the internal _websocket peer directly (might need adjustment if _connection API changes)
 	if _connection and _connection._websocket: # Basic check
 		var err = _connection.send_bytes(message_bytes)
