@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://b6djqj4ukqhqb" path="res://icons/mouse.png" id="1_iog6k"]
 [ext_resource type="Script" uid="uid://dos40m6xo6f7l" path="res://example_code/mouse.gd" id="2_dexx5"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_j7mu1"]
-[ext_resource type="Script" uid="uid://cckicy3kceas3" path="res://schema/tables/main_user_data.gd" id="4_iog6k"]
+[ext_resource type="Script" uid="uid://cwgy0feifc20y" path="res://schema/tables/main_user_data.gd" id="4_iog6k"]
 
 [node name="Mouse" type="Sprite2D" node_paths=PackedStringArray("receiver")]
 scale = Vector2(0.262793, 0.229391)

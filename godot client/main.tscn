@@ -4,9 +4,9 @@
 [ext_resource type="PackedScene" uid="uid://dvenminxkaei3" path="res://scenes/player.tscn" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://cv6bu0sabs8yh" path="res://example_code/spawner.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="5_7mycd"]
-[ext_resource type="Script" uid="uid://cckicy3kceas3" path="res://schema/tables/main_user_data.gd" id="5_272bh"]
+[ext_resource type="Script" uid="uid://cwgy0feifc20y" path="res://schema/tables/main_user_data.gd" id="5_272bh"]
 [ext_resource type="Script" uid="uid://cbeq6brew0wkm" path="res://example_code/LobbyHolder.gd" id="6_7mycd"]
-[ext_resource type="Script" uid="uid://46rx426e0lte" path="res://schema/tables/main_user.gd" id="7_5vw27"]
+[ext_resource type="Script" uid="uid://bil7llo3lck6g" path="res://schema/tables/main_user.gd" id="7_5vw27"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0xm2m"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
