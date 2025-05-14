@@ -8,11 +8,8 @@ var remote_input:Vector2;
 var remote_speed:float;
 
 func _ready() -> void:
-	receiver.update.connect(user_data_received)
-	
-	#WARNING Dont do that! Every insert/update have deletes.
-	#Just receive updates
-	#receiver.delete.connect() 
+	receiver.insert.connect(_initialize_player_on_insert)
+	receiver.update.connect(_update_player_on_row_update)
 	
 	set_process(get_meta("is_local"))
 	set_process_input(get_meta("is_local"))
@@ -38,17 +35,27 @@ func test_struct():
 	
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		var res = await MainModule.change_color_random()
-		print(res)
+		MainModule.change_color_random()
 		
 	if event.is_action_pressed("ui_accept"):
 		test_struct()
-		
-	
-func user_data_received(user_data:MainUserData):
+
+func _initialize_player_on_insert(user_data:MainUserData):
+	#Need to receive only THIS entity/table updates 
 	if get_meta("id") != user_data.identity:return
+	
 	$MeshInstance3D.get_surface_override_material(0).albedo_color = user_data.color
 	$Label3D.text = str(user_data.name)
+	last_position = user_data.last_position
+	remote_input = user_data.direction
+	remote_speed = user_data.player_speed
+	pass;
+	
+func _update_player_on_row_update(prev_value:MainUserData, user_data:MainUserData):
+	#Need to receive only THIS entity/table updates 
+	if get_meta("id") != user_data.identity:return
+
+	$MeshInstance3D.get_surface_override_material(0).albedo_color = user_data.color
 	last_position = user_data.last_position
 	remote_input = user_data.direction
 	remote_speed = user_data.player_speed

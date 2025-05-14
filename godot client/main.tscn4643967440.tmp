@@ -3,10 +3,9 @@
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_h2yge"]
 [ext_resource type="PackedScene" uid="uid://dvenminxkaei3" path="res://scenes/player.tscn" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://cv6bu0sabs8yh" path="res://example_code/spawner.gd" id="3_h2yge"]
-[ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="5_7mycd"]
-[ext_resource type="Script" uid="uid://cwgy0feifc20y" path="res://schema/tables/main_user_data.gd" id="5_272bh"]
+[ext_resource type="Script" uid="uid://cckicy3kceas3" path="res://schema/tables/main_user_data.gd" id="5_272bh"]
 [ext_resource type="Script" uid="uid://cbeq6brew0wkm" path="res://example_code/LobbyHolder.gd" id="6_7mycd"]
-[ext_resource type="Script" uid="uid://bil7llo3lck6g" path="res://schema/tables/main_user.gd" id="7_5vw27"]
+[ext_resource type="Script" uid="uid://46rx426e0lte" path="res://schema/tables/main_user.gd" id="7_5vw27"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0xm2m"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -20,6 +19,66 @@ background_mode = 2
 sky = SubResource("Sky_h2yge")
 tonemap_mode = 2
 glow_enabled = true
+
+[sub_resource type="GDScript" id="GDScript_7mycd"]
+script/source = "@tool
+@icon(\"res://addons/SpacetimeDB/Icons/node_icon.svg\")
+extends Node
+class_name RowReceiver
+
+@export var data_to_receive: Resource : set=on_set;
+
+signal insert(row: Resource)
+signal update(previous: Resource, row: Resource)
+signal delete(row: Resource)
+
+func on_set(schema:Resource):
+	if schema != null:
+		name = \"Receiver [%s]\" % schema.resource_path.get_file()
+		name = name.replace(\"_gd\", \"\")
+	else:
+		name = \"Receiver [EMPTY]\"
+	data_to_receive = schema;
+	pass;
+
+func _ready() -> void:
+	if Engine.is_editor_hint():
+		return;
+	SpacetimeDB.row_inserted.connect(_on_insert)
+	SpacetimeDB.row_updated.connect(_on_update)
+	SpacetimeDB.row_deleted.connect(_on_delete)
+
+	if data_to_receive:
+		data_to_receive = data_to_receive.new()
+	else:
+		push_error(\"No data schema. Node path: \", get_path())
+		return;
+	
+	await get_parent().ready
+	
+	if SpacetimeDB.get_local_database() == null:
+		await SpacetimeDB.database_initialized
+	
+	var data = SpacetimeDB.get_local_database().get_all_rows(data_to_receive.get_meta(\"table_name\"))
+
+	for i in data:
+		_on_insert(data_to_receive.get_meta(\"table_name\"), i)
+	
+func _on_insert(_table_name: String, row: Resource):
+	if row.get_meta(\"table_name\") != data_to_receive.get_meta(\"table_name\"):
+		return
+	insert.emit(row)
+
+func _on_update(_table_name: String, previous: Resource, row: Resource):
+	if row.get_meta(\"table_name\") != data_to_receive.get_meta(\"table_name\"):
+		return
+	update.emit(previous, row)
+
+func _on_delete(_table_name: String, row: Resource):
+	if row.get_meta(\"table_name\") != data_to_receive.get_meta(\"table_name\"):
+		return
+	delete.emit(row)
+"
 
 [node name="Node3D" type="Node3D"]
 
@@ -47,7 +106,7 @@ receiver = NodePath("Receiver [main_user_data]")
 player_scene = ExtResource("2_0xm2m")
 
 [node name="Receiver [main_user_data]" type="Node" parent="PlayerSpawner"]
-script = ExtResource("5_7mycd")
+script = SubResource("GDScript_7mycd")
 data_to_receive = ExtResource("5_272bh")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 
@@ -56,6 +115,6 @@ script = ExtResource("6_7mycd")
 receiver = NodePath("Receiver [main_user]")
 
 [node name="Receiver [main_user]" type="Node" parent="Lobby"]
-script = ExtResource("5_7mycd")
+script = SubResource("GDScript_7mycd")
 data_to_receive = ExtResource("7_5vw27")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"

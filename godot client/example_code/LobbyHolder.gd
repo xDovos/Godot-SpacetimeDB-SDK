@@ -6,7 +6,7 @@ var lobby_id:int = 0
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	receiver.update.connect(on_self_update)
+	receiver.insert.connect(on_self_update)
 	receiver.delete.connect(on_leave_lobby)
 	pass 
 
@@ -16,7 +16,6 @@ func on_leave_lobby(user:MainUser):
 	pass;
 	
 func on_self_update(user:MainUser):
-	#print("In lobby : ", user.name)
 	if user.identity == SpacetimeDB.get_local_identity().identity and lobby_id == 0:
 		lobby_id = user.lobby_id
 		print("My lobby : ", lobby_id)
