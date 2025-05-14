@@ -73,7 +73,10 @@ func generate_code():
 	var generated_files: Array[String] = ["res://%s/spacetime_modules.gd" % [Codegen.CODEGEN_FOLDER]]
 	for i in ui_panel.get_node("ScrollContainer/VBoxContainer").get_children():
 		var module_name = i.get_node("LineEdit").text
-		var uri = ui_panel.get_node("Uri").text + "/v1/database/" + module_name + "/schema?version=9"
+		var uri = ui_panel.get_node("Uri").text
+		if uri.ends_with("/"):
+			uri = uri.left(-1)
+		uri += "/v1/database/" + module_name + "/schema?version=9"
 		http_request.request(uri)
 		var result = await http_request.request_completed
 		if result[1] == 200:
@@ -129,7 +132,10 @@ func cleanup_unused_classes(dir_path: String = "res://schema", files: Array[Stri
 func check_uri():
 	codegen_data.uri = ui_panel.get_node("Uri").text
 	save_codegen_data()
-	var uri = ui_panel.get_node("Uri").text + "/v1/ping"
+	var uri = ui_panel.get_node("Uri").text
+	if uri.ends_with("/"):
+		uri = uri.left(-1)
+	uri += "/v1/ping"
 	http_request.request(uri)
 	var result = await http_request.request_completed
 	clear_log()
