@@ -1,0 +1,446 @@
+{
+	"module": "Main",
+	"types": [
+		{
+			"name": "Lobby",
+			"struct": [
+				{
+					"name": "id",
+					"type": "U64"
+				},
+				{
+					"name": "player_count",
+					"type": "U32"
+				}
+			],
+			"table_name": "lobby",
+			"primary_key": 0,
+			"primary_key_name": "id"
+		},
+		{
+			"name": "Vector2",
+			"gd_native": true,
+			"struct": [
+				{
+					"name": "x",
+					"type": "F32"
+				},
+				{
+					"name": "y",
+					"type": "F32"
+				}
+			]
+		},
+		{
+			"name": "Vector3",
+			"gd_native": true,
+			"struct": [
+				{
+					"name": "x",
+					"type": "F32"
+				},
+				{
+					"name": "y",
+					"type": "F32"
+				},
+				{
+					"name": "z",
+					"type": "F32"
+				}
+			]
+		},
+		{
+			"name": "Message",
+			"struct": [
+				{
+					"name": "int_value",
+					"type": "U8"
+				},
+				{
+					"name": "string_value",
+					"type": "String"
+				},
+				{
+					"name": "int_vec",
+					"is_array": true,
+					"type": "U8"
+				},
+				{
+					"name": "string_vec",
+					"is_array": true,
+					"type": "String"
+				}
+			]
+		},
+		{
+			"name": "User",
+			"struct": [
+				{
+					"name": "identity",
+					"type": "__identity__"
+				},
+				{
+					"name": "online",
+					"type": "Bool"
+				},
+				{
+					"name": "lobby_id",
+					"type": "U64"
+				},
+				{
+					"name": "damage",
+					"type": "Damage"
+				}
+			],
+			"table_name": "user",
+			"primary_key": 0,
+			"primary_key_name": "identity"
+		},
+		{
+			"name": "Damage",
+			"struct": [
+				{
+					"name": "amount",
+					"type": "U32"
+				},
+				{
+					"name": "source",
+					"type": "__identity__"
+				},
+				{
+					"name": "int_vec",
+					"is_array": true,
+					"type": "U8"
+				}
+			]
+		},
+		{
+			"name": "UserData",
+			"struct": [
+				{
+					"name": "identity",
+					"type": "__identity__"
+				},
+				{
+					"name": "online",
+					"type": "Bool"
+				},
+				{
+					"name": "name",
+					"type": "String"
+				},
+				{
+					"name": "lobby_id",
+					"type": "U64"
+				},
+				{
+					"name": "color",
+					"type": "Color"
+				},
+				{
+					"name": "test_vec",
+					"is_array": true,
+					"type": "String"
+				},
+				{
+					"name": "test_bytes_array",
+					"is_array": true,
+					"type": "U8"
+				},
+				{
+					"name": "last_position",
+					"type": "Vector3"
+				},
+				{
+					"name": "direction",
+					"type": "Vector2"
+				},
+				{
+					"name": "player_speed",
+					"type": "F32"
+				},
+				{
+					"name": "last_update",
+					"type": "__timestamp_micros_since_unix_epoch__"
+				}
+			],
+			"table_name": "user_data",
+			"primary_key": 0,
+			"primary_key_name": "identity"
+		},
+		{
+			"name": "Color",
+			"gd_native": true,
+			"struct": [
+				{
+					"name": "r",
+					"type": "F32"
+				},
+				{
+					"name": "g",
+					"type": "F32"
+				},
+				{
+					"name": "b",
+					"type": "F32"
+				},
+				{
+					"name": "a",
+					"type": "F32"
+				}
+			]
+		}
+	],
+	"reducers": [
+		{
+			"name": "change_color_random",
+			"params": []
+		},
+		{
+			"name": "move_user",
+			"params": [
+				{
+					"name": "new_input",
+					"type": "Vector2"
+				},
+				{
+					"name": "global_position",
+					"type": "Vector3"
+				}
+			]
+		},
+		{
+			"name": "save_my_bytes",
+			"params": [
+				{
+					"name": "bytes",
+					"is_array": true,
+					"type": "U8"
+				}
+			]
+		},
+		{
+			"name": "test_struct",
+			"params": [
+				{
+					"name": "message",
+					"type": "Message"
+				},
+				{
+					"name": "another_message",
+					"type": "Message"
+				}
+			]
+		}
+	],
+	"type_map": {
+		"__identity__": "PackedByteArray",
+		"__connection_id__": "PackedByteArray",
+		"__timestamp_micros_since_unix_epoch__": "int",
+		"__time_duration_micros__": "int",
+		"I8": "int",
+		"I16": "int",
+		"I32": "int",
+		"I64": "int",
+		"U8": "int",
+		"U16": "int",
+		"U32": "int",
+		"U64": "int",
+		"F32": "float",
+		"F64": "float",
+		"String": "String",
+		"Vector4": "Vector4",
+		"Vector4I": "Vector4i",
+		"Vector3": "Vector3",
+		"Vector3I": "Vector3i",
+		"Vector2": "Vector2",
+		"Vector2I": "Vector2i",
+		"Plane": "Plane",
+		"Color": "Color",
+		"Quaternion": "Quaternion",
+		"Bool": "bool",
+		"Lobby": "MainLobby",
+		"Message": "MainMessage",
+		"User": "MainUser",
+		"Damage": "MainDamage",
+		"UserData": "MainUserData"
+	},
+	"meta_type_map": {
+		"I8": "i8",
+		"I16": "i16",
+		"I32": "i32",
+		"I64": "i64",
+		"U8": "u8",
+		"U16": "u16",
+		"U32": "u32",
+		"U64": "u64",
+		"F32": "f32",
+		"F64": "f64",
+		"__identity__": "identity",
+		"__connection_id__": "connection_id",
+		"__timestamp_micros_since_unix_epoch__": "i64",
+		"__time_duration_micros__": "i64",
+		"Lobby": "MainLobby",
+		"Message": "MainMessage",
+		"User": "MainUser",
+		"Damage": "MainDamage",
+		"UserData": "MainUserData"
+	},
+	"tables": [
+		{
+			"name": "lobby",
+			"product_type_ref": 0.0,
+			"primary_key": [
+				0.0
+			],
+			"indexes": [
+				{
+					"name": {
+						"some": "lobby_id_idx_btree"
+					},
+					"accessor_name": {
+						"some": "id"
+					},
+					"algorithm": {
+						"BTree": [
+							0.0
+						]
+					}
+				}
+			],
+			"constraints": [
+				{
+					"name": {
+						"some": "lobby_id_key"
+					},
+					"data": {
+						"Unique": {
+							"columns": [
+								0.0
+							]
+						}
+					}
+				}
+			],
+			"sequences": [
+				{
+					"name": {
+						"some": "lobby_id_seq"
+					},
+					"column": 0.0,
+					"start": {
+						"none": []
+					},
+					"min_value": {
+						"none": []
+					},
+					"max_value": {
+						"none": []
+					},
+					"increment": 1.0
+				}
+			],
+			"schedule": {
+				"none": []
+			},
+			"table_type": {
+				"User": []
+			},
+			"table_access": {
+				"Public": []
+			}
+		},
+		{
+			"name": "user",
+			"product_type_ref": 4.0,
+			"primary_key": [
+				0.0
+			],
+			"indexes": [
+				{
+					"name": {
+						"some": "user_identity_idx_btree"
+					},
+					"accessor_name": {
+						"some": "identity"
+					},
+					"algorithm": {
+						"BTree": [
+							0.0
+						]
+					}
+				}
+			],
+			"constraints": [
+				{
+					"name": {
+						"some": "user_identity_key"
+					},
+					"data": {
+						"Unique": {
+							"columns": [
+								0.0
+							]
+						}
+					}
+				}
+			],
+			"sequences": [],
+			"schedule": {
+				"none": []
+			},
+			"table_type": {
+				"User": []
+			},
+			"table_access": {
+				"Public": []
+			}
+		},
+		{
+			"name": "user_data",
+			"product_type_ref": 6.0,
+			"primary_key": [
+				0.0
+			],
+			"indexes": [
+				{
+					"name": {
+						"some": "user_data_identity_idx_btree"
+					},
+					"accessor_name": {
+						"some": "identity"
+					},
+					"algorithm": {
+						"BTree": [
+							0.0
+						]
+					}
+				}
+			],
+			"constraints": [
+				{
+					"name": {
+						"some": "user_data_identity_key"
+					},
+					"data": {
+						"Unique": {
+							"columns": [
+								0.0
+							]
+						}
+					}
+				}
+			],
+			"sequences": [],
+			"schedule": {
+				"none": []
+			},
+			"table_type": {
+				"User": []
+			},
+			"table_access": {
+				"Public": []
+			}
+		}
+	]
+}

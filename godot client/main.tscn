@@ -3,10 +3,10 @@
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_h2yge"]
 [ext_resource type="PackedScene" uid="uid://dvenminxkaei3" path="res://scenes/player.tscn" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://cv6bu0sabs8yh" path="res://example_code/spawner.gd" id="3_h2yge"]
-[ext_resource type="Script" uid="uid://bfxhxk3ye7ndm" path="res://schema/User.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="5_7mycd"]
-[ext_resource type="Script" uid="uid://bw23215cxrv2d" path="res://schema/UserData.gd" id="5_272bh"]
+[ext_resource type="Script" uid="uid://73u0r482mll7" path="res://schema/tables/main_user_data.gd" id="5_272bh"]
 [ext_resource type="Script" uid="uid://cbeq6brew0wkm" path="res://example_code/LobbyHolder.gd" id="6_7mycd"]
+[ext_resource type="Script" uid="uid://bwtw63xh51xk7" path="res://schema/tables/main_user.gd" id="7_5vw27"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0xm2m"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -43,19 +43,19 @@ transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 1, 15, 17)
 
 [node name="PlayerSpawner" type="Node3D" parent="." node_paths=PackedStringArray("receiver")]
 script = ExtResource("3_h2yge")
-receiver = NodePath("Receiver [UserData]")
+receiver = NodePath("Receiver [main_user_data]")
 player_scene = ExtResource("2_0xm2m")
 
-[node name="Receiver [UserData]" type="Node" parent="PlayerSpawner"]
+[node name="Receiver [main_user_data]" type="Node" parent="PlayerSpawner"]
 script = ExtResource("5_7mycd")
 data_to_receive = ExtResource("5_272bh")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 
 [node name="Lobby" type="Node" parent="." node_paths=PackedStringArray("receiver")]
 script = ExtResource("6_7mycd")
-receiver = NodePath("Receiver [User]")
+receiver = NodePath("Receiver [main_user]")
 
-[node name="Receiver [User]" type="Node" parent="Lobby"]
+[node name="Receiver [main_user]" type="Node" parent="Lobby"]
 script = ExtResource("5_7mycd")
-data_to_receive = ExtResource("4_lquwl")
+data_to_receive = ExtResource("7_5vw27")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
