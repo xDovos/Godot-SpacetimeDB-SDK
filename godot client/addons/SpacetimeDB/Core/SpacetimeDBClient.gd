@@ -57,7 +57,7 @@ func initialize_and_connect():
 	print_log("SpacetimeDBClient: Initializing...")
 
 	# 1. Initialize Parser
-	_deserializer = BSATNDeserializer.new(schema_path)
+	_deserializer = BSATNDeserializer.new(schema_path, debug_mode)
 	_serializer = BSATNSerializer.new()
 
 	# 2. Initialize Local Database

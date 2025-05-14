@@ -3,7 +3,7 @@ extends Node3D
 func _ready():
 	SpacetimeDB.connect_db(
 		"https://flametime.cfd/spacetime", #WARNING <--- replace it with your url
-		"quickstart-chat", #WARNING <--- replace it with your database
+		"main", #WARNING <--- replace it with your database
 		SpacetimeDBConnection.CompressionPreference.NONE,
 		true, #WARNING <--- one time token. New window = new token
 		false #WARNING <--- debug mode, print logs

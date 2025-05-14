@@ -10,12 +10,12 @@ func _ready() -> void:
 	receiver.delete.connect(on_leave_lobby)
 	pass 
 
-func on_leave_lobby(user:User):
+func on_leave_lobby(user:MainUser):
 	print(user.online)
 	print("Leave : ", user.identity.hex_encode())
 	pass;
 	
-func on_self_update(user:User):
+func on_self_update(user:MainUser):
 	#print("In lobby : ", user.name)
 	if user.identity == SpacetimeDB.get_local_identity().identity and lobby_id == 0:
 		lobby_id = user.lobby_id

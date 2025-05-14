@@ -1,0 +1,1 @@
+You can delete this directory and files. It's only used for codegen debugging.

@@ -1,6 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://dcklym85vmdt3"]
-
-[ext_resource type="Script" uid="uid://4536ajssqru1" path="res://addons/SpacetimeDB/GodotHelpers/code_gen.gd" id="1_s7wgb"]
+[gd_scene load_steps=6 format=3 uid="uid://dcklym85vmdt3"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dfrsg"]
 bg_color = Color(0.466667, 0.152941, 0.152941, 1)
@@ -22,6 +20,7 @@ border_width_right = 1
 border_width_bottom = 1
 
 [node name="Control" type="Control"]
+custom_minimum_size = Vector2(0, 250)
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -185,6 +184,3 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_styles/read_only = SubResource("StyleBoxFlat_yiric")
 editable = false
 wrap_mode = 1
-
-[node name="CodeGen" type="Node" parent="."]
-script = ExtResource("1_s7wgb")
