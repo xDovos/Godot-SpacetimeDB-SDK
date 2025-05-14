@@ -157,7 +157,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
             print("Receiver Insert: Player %s Health: %d" % [player.name, player.health])
             # ... spawn player visual ...
 
-        func _on_player_receiver_update(player: PlayerData, previous_row: PlayerData):
+        func _on_player_receiver_update(previous_row: PlayerData, player: PlayerData):
             # Player updated
             print("Receiver Update: Player %s Health: %d" % [player.name, player.health])
             print("Receiver Previous Value: Player %s Health: %d" % [previous_row.name, previous_row.health])

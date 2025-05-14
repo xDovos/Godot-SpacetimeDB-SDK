@@ -34,7 +34,7 @@ signal identity_received(identity_token: IdentityTokenData)
 signal database_initialized # Emitted after InitialSubscription is processed
 signal database_updated(table_update: TableUpdateData) # Emitted for each table update
 signal row_inserted(table_name: String, row: Resource) # From LocalDatabase
-signal row_updated(table_name: String, row: Resource, previous: Resource) # From LocalDatabase
+signal row_updated(table_name: String, previous: Resource, row: Resource) # From LocalDatabase
 signal row_deleted(table_name: String, row: Resource)
 signal row_deleted_key(table_name: String, primary_key) # From LocalDatabase
 signal reducer_call_response(response: Resource) # TODO: Define response resource
@@ -64,7 +64,7 @@ func initialize_and_connect():
 	_local_db = LocalDatabase.new(_deserializer._possible_row_schemas) # Pass loaded schemas
 	# Connect to LocalDatabase signals to re-emit them
 	_local_db.row_inserted.connect(func(tn, r) -> void: row_inserted.emit(tn, r))
-	_local_db.row_updated.connect(func(tn, r, p) -> void: row_updated.emit(tn, r, p))
+	_local_db.row_updated.connect(func(tn, p, r) -> void: row_updated.emit(tn, p, r))
 	_local_db.row_deleted.connect(func(tn, r) -> void: row_deleted.emit(tn, r))
 	_local_db.row_deleted_key.connect(func(tn, pk) -> void: row_deleted_key.emit(tn, pk))
 	add_child(_local_db) # Add as child if it needs signals
@@ -356,13 +356,11 @@ func wait_for_reducer_response(request_id_to_match: int, timeout_seconds: float 
 
 	if signal_result == null:
 		printerr("SpacetimeDBClient: Timeout waiting for response for Req ID: %d" % request_id_to_match)
-		#i realy need it here if i already await?
 		reducer_call_timeout.emit(request_id_to_match)
 		return null
 	else:
 		var tx_update: TransactionUpdateData = signal_result
 		print_log("SpacetimeDBClient: Received matching response for Req ID: %d" % request_id_to_match)
-		#i realy need it here if i already await?
 		reducer_call_response.emit(tx_update.reducer_call)
 		return tx_update
 

@@ -7,23 +7,23 @@ signal user_join(user:MainUser)
 signal user_leave(user:MainUser)
 
 func _ready() -> void:
-	receiver.update.connect(on_user_received)
-	receiver.delete.connect(on_user_leave)
+	receiver.insert.connect(_on_user_inserted)
+	receiver.delete.connect(_on_user_deleted)
 	pass;
 	
-func on_user_received(user:MainUser):
-	if local_user == null and user.identity == SpacetimeDB.get_local_identity().identity:
+func _on_user_inserted(user:MainUser):
+	if user.identity == SpacetimeDB.get_local_identity().identity:
 		print("Set local user: ", user.identity.hex_encode())
 		local_user = user;
 		subscibe_on_lobby(user.lobby_id)
-	else:
-		if users.has(user.identity):return;
-		print("Join: ", user.identity.hex_encode())
-		user_join.emit(user)
-		users[user.identity] = user;
+	
+	if users.has(user.identity):return;
+	print("Join: ", user.identity.hex_encode())
+	user_join.emit(user)
+	users[user.identity] = user;
 	pass;
 
-func on_user_leave(user:MainUser):
+func _on_user_deleted(user:MainUser):
 	print("Leave: ", user.identity.hex_encode())
 	user_leave.emit(user)
 	pass;

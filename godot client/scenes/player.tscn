@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://tvakv4fnjvt0" path="res://example_code/player.gd" id="1_3vyb7"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="2_qhqgy"]
-[ext_resource type="Script" uid="uid://1uannrqs7jb4" path="res://schema/tables/main_user_data.gd" id="3_qhqgy"]
+[ext_resource type="Script" uid="uid://cckicy3kceas3" path="res://schema/tables/main_user_data.gd" id="3_qhqgy"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1bvp3"]
 

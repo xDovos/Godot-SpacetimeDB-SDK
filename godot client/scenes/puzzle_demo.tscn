@@ -1,10 +1,10 @@
 [gd_scene load_steps=7 format=3 uid="uid://bbffb4bvr3yin"]
 
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_u1py6"]
-[ext_resource type="Script" uid="uid://dem1ds2t7l6l4" path="res://scenes/lobby_holder.gd" id="2_6b2w0"]
+[ext_resource type="Script" uid="uid://dem1ds2t7l6l4" path="res://example_code/lobby_holder.gd" id="2_6b2w0"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_6b2w0"]
-[ext_resource type="Script" uid="uid://bwtw63xh51xk7" path="res://schema/tables/main_user.gd" id="3_xse7d"]
-[ext_resource type="Script" uid="uid://bbu2mhwjr4hlq" path="res://scenes/players.gd" id="5_4c4fm"]
+[ext_resource type="Script" uid="uid://46rx426e0lte" path="res://schema/tables/main_user.gd" id="3_xse7d"]
+[ext_resource type="Script" uid="uid://bbu2mhwjr4hlq" path="res://example_code/players.gd" id="5_4c4fm"]
 [ext_resource type="PackedScene" uid="uid://bn1hfkbb68wno" path="res://scenes/mouse.tscn" id="6_6b2w0"]
 
 [node name="Node2D" type="Node2D"]

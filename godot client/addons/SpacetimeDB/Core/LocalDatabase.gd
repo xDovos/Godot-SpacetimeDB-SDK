@@ -10,7 +10,7 @@ var _primary_key_cache: Dictionary = {}
 
 # Signals (if needed, better if this is a Node or uses a SignalBus Autoload)
 signal row_inserted(table_name: String, row: Resource)
-signal row_updated(table_name: String, row: Resource, previous_row: Resource)
+signal row_updated(table_name: String, previous_row: Resource, row: Resource)
 signal row_deleted(table_name: String, row: Resource) 
 signal row_deleted_key(table_name: String, primary_key) 
 
@@ -88,11 +88,12 @@ func apply_table_update(table_update: TableUpdateData):
 		var is_update := table_dict.has(pk_value)
 
 		# Store the previous row in case it's an update
-		var prev_row: Resource = table_dict[pk_value] if is_update else null
+		# Let's duplicate the resource just in case
+		var prev_row: Resource = table_dict[pk_value].duplicate() if is_update else null
 		table_dict[pk_value] = inserted_row # Add or overwrite
 
 		if is_update:
-			row_updated.emit(table_update.table_name, inserted_row, prev_row)
+			row_updated.emit(table_update.table_name, prev_row, inserted_row)
 		else:
 			row_inserted.emit(table_update.table_name, inserted_row)
 
