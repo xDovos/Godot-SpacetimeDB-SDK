@@ -281,10 +281,10 @@ func generate_reducer_gdscript(schema: Dictionary) -> String:
 			return "&'"+META_TYPE_MAP.get(x.get("type", ""), "")+"'"))
 		var reducer_name: String = reducer.get("name", "")
 		content += "static func %s(%s) -> void:\n" % [reducer_name, params_str] + \
-		"\tvar _id_: int = SpacetimeDB.call_reducer('%s', [%s], [%s])\n" % \
+		"\tvar __id__: int = SpacetimeDB.call_reducer('%s', [%s], [%s])\n" % \
 		[reducer_name, param_names, param_types] + \
-		"\tvar _result_ = await SpacetimeDB.wait_for_reducer_response(_id_)\n" + \
-		"\tcb.call(_result_)\n\n"
+		"\tvar __result__ = await SpacetimeDB.wait_for_reducer_response(__id__)\n" + \
+		"\tcb.call(__result__)\n\n"
 	content = content.left(-2)
 	return content
 
