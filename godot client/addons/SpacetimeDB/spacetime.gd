@@ -3,7 +3,8 @@ class_name Spacetime extends EditorPlugin
 
 const AUTOLOAD_NAME := "SpacetimeDB"
 const AUTOLOAD_PATH := "res://addons/SpacetimeDB/Core/SpacetimeDBClient.gd"
-const SAVE_PATH := "res://addons/SpacetimeDB/codegen_data.dat"
+const DATA_PATH := "res://addons/SpacetimeData"
+const SAVE_PATH := DATA_PATH +"/codegen_data.dat"
 const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 
 var ui_panel: Control
@@ -98,7 +99,6 @@ func load_codegen_data() -> void:
 		for module in codegen_data.modules.duplicate():
 			add_module(module, true)
 	else:
-		#load_data.close()
 		codegen_data = {
 			"uri": "http://127.0.0.1:3000",
 			"modules": []
@@ -106,6 +106,9 @@ func load_codegen_data() -> void:
 		save_codegen_data()
 
 func save_codegen_data() -> void:
+	if not FileAccess.file_exists(DATA_PATH):
+		DirAccess.make_dir_absolute(DATA_PATH)
+
 	var save_file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if not save_file:
 		printerr("Failed to open codegen_data.dat for writing.")
