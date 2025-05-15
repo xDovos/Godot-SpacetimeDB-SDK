@@ -1,12 +1,6 @@
 # addons/spacetimedb_client/DataDecompressor.gd
 class_name DataDecompressor extends RefCounted
 
-enum CompressionType {
-	NONE,
-	BROTLI,
-	GZIP
-}
-
 var _last_error: String = ""
 
 # --- Error Handling ---
@@ -25,7 +19,7 @@ func _set_error(msg: String):
 		printerr(_last_error)
 
 # --- Decompression Logic ---
-func decompress(compressed_bytes: PackedByteArray, type: CompressionType) -> PackedByteArray:
+func decompress(compressed_bytes: PackedByteArray, type: SpacetimeDBConnection.CompressionPreference) -> PackedByteArray:
 	_last_error = "" 
 
 	if compressed_bytes.is_empty():
@@ -34,17 +28,17 @@ func decompress(compressed_bytes: PackedByteArray, type: CompressionType) -> Pac
 	var decompressed_data: PackedByteArray
 
 	match type:
-		CompressionType.NONE:
+		SpacetimeDBConnection.CompressionPreference.NONE:
 			return compressed_bytes
 
-		CompressionType.BROTLI:
+		SpacetimeDBConnection.CompressionPreference.BROTLI:
 			_set_error("Brotli not supported")
 			return []
 		
 		
-		CompressionType.GZIP:
-			_set_error("GZip not supported")
-			return []
+		SpacetimeDBConnection.CompressionPreference.GZIP:
+			#_set_error("GZip not supported")
+			#return []
 			
 			## TODO: Doesnt work. Need chunk reading logic
 			compressed_bytes = compressed_bytes.slice(1) #Remove msg compression tag
@@ -55,16 +49,17 @@ func decompress(compressed_bytes: PackedByteArray, type: CompressionType) -> Pac
 			print("Start (after slice): ", compressed_bytes.hex_encode()) 
 
 			var gzip_stream := StreamPeerGZIP.new()
+			
 			var start_status = gzip_stream.start_decompression(true)
 			if start_status != OK:
 				_set_error("Failed to start Gzip decompression (Error: %s)" % error_string(start_status))
 				return []
-
-			var put_status = gzip_stream.put_data(compressed_bytes)
-			if put_status != OK:
-				_set_error("Failed to put data into Gzip stream (Error: %s)" % error_string(put_status))
+				
+			var put_status = gzip_stream.put_partial_data(compressed_bytes)
+			if put_status[0] != OK:
+				_set_error("Failed to put data into Gzip stream (Error: %s)" % error_string(put_status[0]))
 				return []
-
+				
 			var finish_status = gzip_stream.finish()
 			if finish_status != OK:
 				_set_error("Failed to finish Gzip stream (Error: %s). Input might be corrupted or incomplete." % error_string(finish_status))
@@ -79,6 +74,7 @@ func decompress(compressed_bytes: PackedByteArray, type: CompressionType) -> Pac
 			if get_status_data[0] != OK:
 				_set_error("Failed to get decompressed Gzip data (Error: %s after finish)." % error_string(get_status_data[0]))
 				return []
+			print("GZIP WORK!")
 			return get_status_data[1]
 
 		_:

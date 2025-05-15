@@ -22,8 +22,8 @@ signal connection_error(code: int, reason: String)
 signal message_received(data: PackedByteArray) 
 signal total_bytes(sended: int, received: int)
 
-func _init(compression:int, debug_mode:bool):
-	preferred_compression = compression
+func _init(compression:CompressionPreference, debug_mode:bool):
+	set_compression_preference(compression)
 	self._debug_mode = debug_mode
 	set_process(false) # Don't process until connect is called
 	
@@ -45,7 +45,7 @@ func send_bytes(bytes:PackedByteArray) -> Error:
 	total_bytes.emit(_total_bytes_send, _total_bytes_received)
 	return err;
 	
-func connect_to_database(base_url: String, database_name: String, connection_id: String, compression:CompressionPreference): # Added connection_id
+func connect_to_database(base_url: String, database_name: String, connection_id: String): # Added connection_id
 	if _is_connected or _connection_requested:
 		print_log("SpacetimeDBConnection: Already connected or connecting.")
 		return
@@ -68,6 +68,7 @@ func connect_to_database(base_url: String, database_name: String, connection_id:
 	# Add compression preference
 	# Convert enum value to string for the URL parameter
 	var compression_str : String
+	
 	match preferred_compression:
 		CompressionPreference.NONE: compression_str = "None" # Use string "None" as seen in C# enum
 		CompressionPreference.BROTLI: compression_str = "Brotli"
@@ -79,7 +80,7 @@ func connect_to_database(base_url: String, database_name: String, connection_id:
 	# var light_mode = false # Example
 	# if light_mode:
 	#	 query_params += "&light=true"
-
+	
 	if OS.get_name() == "Web":
 		query_params += "&token=" + _token
 	else:
@@ -87,7 +88,6 @@ func connect_to_database(base_url: String, database_name: String, connection_id:
 		_websocket.handshake_headers = [auth_header] 
 
 	_target_url = ws_url_base + query_params
-
 	print_log("SpacetimeDBConnection: Attempting to connect to: " + _target_url)
 
 	_websocket.supported_protocols = [BSATN_PROTOCOL]
