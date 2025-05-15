@@ -3,7 +3,7 @@ class_name SpacetimeDBClient extends Node
 # --- Configuration ---
 @export var base_url: String = "http://127.0.0.1:3000"
 @export var database_name: String = "quickstart-chat" # Example
-@export var schema_path: String = "res://schema"
+@export var schema_path: String = "res://spacetime_data/schema/"
 @export var auto_connect: bool = false
 @export var auto_request_token: bool = true
 @export var token_save_path: String = "user://spacetimedb_token.dat" # Use a more specific name
@@ -129,7 +129,7 @@ func _on_token_received(received_token: String):
 	_rest_api.set_token(self._token) # REST API might also need it
 
 	# Now attempt to connect WebSocket
-	_connection.connect_to_database(base_url, database_name, conn_id, compression)
+	_connection.connect_to_database(base_url, database_name, conn_id)
 
 func _on_token_request_failed(error_code: int, response_body: String):
 	printerr("SpacetimeDBClient: Failed to acquire token. Cannot connect.")

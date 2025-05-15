@@ -36,7 +36,7 @@ var debug_mode: bool = false # Controls verbose debug printing
 
 # --- Initialization ---
 
-func _init(p_schema_path: String = "res://schema", p_debug_mode: bool = false) -> void:
+func _init(p_schema_path: String = "res://spacetime_data/schema", p_debug_mode: bool = false) -> void:
 	debug_mode = p_debug_mode
 	# Load table row schema scripts
 	_load_row_schemas("%s/tables" % p_schema_path)
@@ -696,8 +696,8 @@ func _get_query_update_stream(spb: StreamPeerBuffer, table_name_for_error: Strin
 	match compression_tag_raw:
 		COMPRESSION_NONE: return spb
 		COMPRESSION_BROTLI, COMPRESSION_GZIP:
-			var compression_type = DataDecompressor.CompressionType.BROTLI if compression_tag_raw == COMPRESSION_BROTLI else DataDecompressor.CompressionType.GZIP
-			var compression_name = "Brotli" if compression_type == DataDecompressor.CompressionType.BROTLI else "Gzip"
+			var compression_type = SpacetimeDBConnection.CompressionPreference.BROTLI if compression_tag_raw == COMPRESSION_BROTLI else SpacetimeDBConnection.CompressionPreference.GZIP
+			var compression_name = "Brotli" if compression_type == SpacetimeDBConnection.CompressionPreference.BROTLI else "Gzip"
 			var compressed_len := read_u32_le(spb); if has_error(): return null
 			var compressed_data := read_bytes(spb, compressed_len); if has_error(): return null
 			var decompressed_data := _decompressor.decompress(compressed_data, compression_type)
@@ -752,9 +752,13 @@ func parse_packet(buffer: PackedByteArray) -> Resource:
 
 	var compression_tag := read_u8(spb)
 	if has_error(): return null
-	if compression_tag != COMPRESSION_NONE:
-		# TODO: Implement decompression if needed
-		_set_error("Unsupported compression tag: 0x%02X" % compression_tag, 0); return null
+	
+	match compression_tag:
+		0: pass
+		1: _set_error("Unsupported compression tag: 0x%02X" % compression_tag, 0); return null
+		2: 
+			#DataDecompressor.new().decompress(buffer, SpacetimeDBConnection.CompressionPreference.GZIP)
+			_set_error("Unsupported compression tag: 0x%02X" % compression_tag, 0); return null
 
 	var msg_type := read_u8(spb)
 	if has_error(): return null

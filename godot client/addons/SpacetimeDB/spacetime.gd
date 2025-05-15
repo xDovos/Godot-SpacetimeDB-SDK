@@ -3,7 +3,8 @@ class_name Spacetime extends EditorPlugin
 
 const AUTOLOAD_NAME := "SpacetimeDB"
 const AUTOLOAD_PATH := "res://addons/SpacetimeDB/Core/SpacetimeDBClient.gd"
-const SAVE_PATH := "res://addons/SpacetimeDB/codegen_data.dat"
+const DATA_PATH := "res://spacetime_data/"
+const SAVE_PATH := DATA_PATH +"/codegen_data.txt"
 const UI_PATH := "res://addons/SpacetimeDB/UI/ui.tscn"
 
 var ui_panel: Control
@@ -70,7 +71,7 @@ func generate_code():
 	print_log("Start Code Generation...")
 	var codegen: Codegen = Codegen.new()
 	var modules: Array[String] = []
-	var generated_files: Array[String] = ["res://%s/spacetime_modules.gd" % [Codegen.CODEGEN_FOLDER]]
+	var generated_files: Array[String] = ["res://%s/%s/spacetime_modules.gd" % [Codegen.PLUGIN_DATA_FOLDER ,Codegen.CODEGEN_FOLDER]]
 	for i in ui_panel.get_node("ScrollContainer/VBoxContainer").get_children():
 		var module_name = i.get_node("LineEdit").text
 		var uri = ui_panel.get_node("Uri").text
@@ -85,7 +86,7 @@ func generate_code():
 			generated_files.append_array(codegen._on_request_completed(json, parse_module_name))
 			modules.append(parse_module_name)
 	codegen.generate_module_link(modules)
-	cleanup_unused_classes("res://%s" % Codegen.CODEGEN_FOLDER, generated_files)
+	cleanup_unused_classes("res://%s/%s" % [Codegen.PLUGIN_DATA_FOLDER ,Codegen.CODEGEN_FOLDER], generated_files)
 	get_editor_interface().get_resource_filesystem().scan()
 	print_log("Code Generation Complete!")
 
@@ -93,12 +94,11 @@ func load_codegen_data() -> void:
 	var load_data = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if load_data:
 		codegen_data = JSON.parse_string(load_data.get_as_text())
-		load_data.close()		
+		load_data.close()
 		ui_panel.get_node("Uri").text = codegen_data.uri
 		for module in codegen_data.modules.duplicate():
 			add_module(module, true)
 	else:
-		#load_data.close()
 		codegen_data = {
 			"uri": "http://127.0.0.1:3000",
 			"modules": []
@@ -106,6 +106,10 @@ func load_codegen_data() -> void:
 		save_codegen_data()
 
 func save_codegen_data() -> void:
+	if not FileAccess.file_exists(DATA_PATH):
+		DirAccess.make_dir_absolute(DATA_PATH)
+		get_editor_interface().get_resource_filesystem().scan()
+
 	var save_file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if not save_file:
 		printerr("Failed to open codegen_data.dat for writing.")
