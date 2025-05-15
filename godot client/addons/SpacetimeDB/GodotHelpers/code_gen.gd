@@ -168,7 +168,7 @@ func generate_struct_gdscript(type, module_name) -> String:
 		var meta: String = META_TYPE_MAP.get(field.get("type", ""), "")
 		if not meta.is_empty():
 			meta_data.append("set_meta('bsatn_type_%s', &'%s')" 
-				% [field_name.to_snake_case(), meta])
+				% [field_name, meta])
 		content += "@export var %s: %s\n" % [field_name, field_type]
 		class_fields.append([field_name, field_type])
 	content += "\nfunc _init():\n"
