@@ -2,7 +2,9 @@
 class_name Codegen extends Resource
 var OPTION_HANDLING: = RustOptionHandling.OPTION_T_AS_T
 var HIDE_PRIVATE_TABLES: = true
+const PLUGIN_DATA_FOLDER = "spacetime_data"
 const CODEGEN_FOLDER = "schema"
+const REQUIRED_FOLDERS_IN_CODEGEN_FOLDER = ["tables", "spacetime_types"]
 
 const GDNATIVE_TYPES := {
 	"I8": "int",
@@ -63,11 +65,16 @@ func _init() -> void:
 func _on_request_completed(json_string: String, module_name: String) -> Array[String]:
 	var json = JSON.parse_string(json_string)
 	var schema: Dictionary = parse_schema(json, module_name)
-	if not DirAccess.dir_exists_absolute("res://%s" % "codegen_debug"):
-		DirAccess.make_dir_recursive_absolute("res://%s" % "codegen_debug")
-	var file = FileAccess.open("res://%s/readme.txt" % "codegen_debug", FileAccess.WRITE)
+	if not DirAccess.dir_exists_absolute("res://%s/%s" %[PLUGIN_DATA_FOLDER, "codegen_debug"]):
+		DirAccess.make_dir_recursive_absolute("res://%s/%s" %[PLUGIN_DATA_FOLDER , "codegen_debug"])
+	
+	for folder in REQUIRED_FOLDERS_IN_CODEGEN_FOLDER:
+		if not DirAccess.dir_exists_absolute("res://%s/%s/%s" %[PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, folder]):
+			DirAccess.make_dir_recursive_absolute("res://%s/%s/%s" %[PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, folder])
+			
+	var file = FileAccess.open("res://%s/%s/readme.txt" %[PLUGIN_DATA_FOLDER , "codegen_debug"], FileAccess.WRITE)
 	file.store_string("You can delete this directory and files. It's only used for codegen debugging.")
-	file = FileAccess.open("res://%s/schema_%s.json" % ["codegen_debug", module_name], FileAccess.WRITE)
+	file = FileAccess.open("res://%s/%s/schema_%s.json" % [PLUGIN_DATA_FOLDER, "codegen_debug", module_name], FileAccess.WRITE)
 	file.store_string(JSON.stringify(schema, "\t", false))
 	var generated_files := build_gdscript_from_schema(schema)
 	return generated_files
@@ -89,9 +96,9 @@ func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 			var content: String = generate_struct_gdscript(type, module_name)
 			var output_file_name: String = "%s_%s.gd" % \
 				[module_name.to_snake_case(), type.get("name", "").to_snake_case()]
-			var output_file_path: String = "res://%s/%s/%s" % [CODEGEN_FOLDER, folder_path, output_file_name]
-			if not DirAccess.dir_exists_absolute("res://%s/%s" % [CODEGEN_FOLDER, folder_path]):
-				DirAccess.make_dir_recursive_absolute("res://%s/%s" % [CODEGEN_FOLDER, folder_path])
+			var output_file_path: String = "res://%s/%s/%s/%s" % [PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, folder_path, output_file_name]
+			if not DirAccess.dir_exists_absolute("res://%s/%s/%s" % [PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, folder_path]):
+				DirAccess.make_dir_recursive_absolute("res://%s/%s/%s" % [PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, folder_path])
 			var file = FileAccess.open(output_file_path, FileAccess.WRITE)
 			if file:
 				file.store_string(content)
@@ -103,30 +110,30 @@ func build_gdscript_from_schema(schema: Dictionary) -> Array[String]:
 			var content: String = generate_enum_gdscript(type, module_name)
 			var output_file_name: String = "%s_%s.gd" % \
 				[module_name.to_snake_case(), type.get("name", "").to_snake_case()]
-			var output_file_path: String = "res://%s/%s/%s" % [CODEGEN_FOLDER, folder_path, output_file_name]
-			if not DirAccess.dir_exists_absolute("res://%s/%s" % [CODEGEN_FOLDER, folder_path]):
-				DirAccess.make_dir_recursive_absolute("res://%s/%s" % [CODEGEN_FOLDER, folder_path])
+			var output_file_path: String = "res://%s/%s/%s/%s" % [PLUGIN_DATA_FOLDER ,CODEGEN_FOLDER, folder_path, output_file_name]
+			if not DirAccess.dir_exists_absolute("res://%s/%s/%s" % [PLUGIN_DATA_FOLDER ,CODEGEN_FOLDER, folder_path]):
+				DirAccess.make_dir_recursive_absolute("res://%s/%s/%s" % [PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, folder_path])
 			var file = FileAccess.open(output_file_path, FileAccess.WRITE)
 			if file:
 				file.store_string(content)
 			generated_files.append(output_file_path)
 	var module_content: String = generate_module_gdscript(schema)
 	var output_file_name: String = "module_%s.gd" % module_name.to_snake_case()
-	var output_file_path: String = "res://%s/%s" % [CODEGEN_FOLDER, output_file_name]
+	var output_file_path: String = "res://%s/%s/%s" % [PLUGIN_DATA_FOLDER ,CODEGEN_FOLDER, output_file_name]
 	var file = FileAccess.open(output_file_path, FileAccess.WRITE)
 	if file:
 		file.store_string(module_content)
 		generated_files.append(output_file_path)
 	var reducers_content: String = generate_reducer_gdscript(schema)
 	output_file_name = "module_%s_reducers.gd" % module_name.to_snake_case()
-	output_file_path = "res://%s/%s" % [CODEGEN_FOLDER, output_file_name]
+	output_file_path = "res://%s/%s/%s" % [PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, output_file_name]
 	file = FileAccess.open(output_file_path, FileAccess.WRITE)
 	if file:
 		file.store_string(reducers_content)
 		generated_files.append(output_file_path)
 	var types_content: String = generate_types_gdscript(schema)
 	output_file_name = "module_%s_types.gd" % module_name.to_snake_case()
-	output_file_path = "res://%s/%s" % [CODEGEN_FOLDER, output_file_name]
+	output_file_path = "res://%s/%s/%s" % [PLUGIN_DATA_FOLDER ,CODEGEN_FOLDER, output_file_name]
 	file = FileAccess.open(output_file_path, FileAccess.WRITE)
 	if file:
 		file.store_string(types_content)
@@ -240,9 +247,9 @@ func generate_module_gdscript(schema: Dictionary) -> String:
 	var module_name: String = schema.get("module", null)
 	var content: String = "#Do not edit this file, it is generated automatically.\n" + \
 	"class_name %sModule extends Resource\n\n" % module_name.to_pascal_case()
-	content += "const Reducers = preload('res://%s/module_%s_reducers.gd')\n" % [CODEGEN_FOLDER, 
+	content += "const Reducers = preload('res://%s/%s/module_%s_reducers.gd')\n" % [PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, 
 		module_name.to_snake_case()]
-	content += "const Types = preload('res://%s/module_%s_types.gd')\n\n" % [CODEGEN_FOLDER, 
+	content += "const Types = preload('res://%s/%s/module_%s_types.gd')\n\n" % [PLUGIN_DATA_FOLDER ,CODEGEN_FOLDER, 
 		module_name.to_snake_case()]
 	content += generate_types_gdscript(schema, true) + "\n"
 	content += generate_reducer_gdscript(schema)
@@ -274,8 +281,8 @@ func generate_types_gdscript(schema: Dictionary, const_pointer: bool = false) ->
 				content += "\t_%s,\n" % variant_name.to_pascal_case()
 			content += "}\n"
 		else:
-			content += "const %s = preload('res://%s/%s/%s_%s.gd')\n" % \
-			[type_name.to_pascal_case(), CODEGEN_FOLDER, subfolder, 
+			content += "const %s = preload('res://%s/%s/%s/%s_%s.gd')\n" % \
+			[type_name.to_pascal_case(), PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, subfolder, 
 			module_name.to_snake_case(), type_name.to_snake_case()]
 	return content
 
@@ -311,10 +318,10 @@ func generate_module_link(modules: Array[String]) -> void:
 	var content: String = "#Do not edit this file, it is generated automatically.\n" + \
 	"class_name SpacetimeModule extends Resource\n\n"
 	for module_name in modules:
-		content += "const %s = preload('res://%s/module_%s.gd')\n" % \
-		[module_name.to_pascal_case(), CODEGEN_FOLDER, module_name.to_snake_case()]
+		content += "const %s = preload('res://%s/%s/module_%s.gd')\n" % \
+		[module_name.to_pascal_case(), PLUGIN_DATA_FOLDER, CODEGEN_FOLDER, module_name.to_snake_case()]
 	var output_file_name: String = "spacetime_modules.gd"
-	var output_file_path: String = "res://%s/%s" % [CODEGEN_FOLDER, output_file_name]
+	var output_file_path: String = "res://%s/%s/%s" % [PLUGIN_DATA_FOLDER ,CODEGEN_FOLDER, output_file_name]
 	var file = FileAccess.open(output_file_path, FileAccess.WRITE)
 	if file:
 		file.store_string(content)

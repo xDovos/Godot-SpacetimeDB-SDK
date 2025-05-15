@@ -36,7 +36,7 @@ var debug_mode: bool = false # Controls verbose debug printing
 
 # --- Initialization ---
 
-func _init(p_schema_path: String = "res://schema", p_debug_mode: bool = false) -> void:
+func _init(p_schema_path: String = "res://spacetime_data/schema", p_debug_mode: bool = false) -> void:
 	debug_mode = p_debug_mode
 	# Load table row schema scripts
 	_load_row_schemas("%s/tables" % p_schema_path)

@@ -3,7 +3,7 @@ class_name SpacetimeDBClient extends Node
 # --- Configuration ---
 @export var base_url: String = "http://127.0.0.1:3000"
 @export var database_name: String = "quickstart-chat" # Example
-@export var schema_path: String = "res://schema"
+@export var schema_path: String = "res://spacetime_data/schema/"
 @export var auto_connect: bool = false
 @export var auto_request_token: bool = true
 @export var token_save_path: String = "user://spacetimedb_token.dat" # Use a more specific name
