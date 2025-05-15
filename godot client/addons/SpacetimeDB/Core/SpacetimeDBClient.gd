@@ -12,6 +12,7 @@ class_name SpacetimeDBClient extends Node
 @export var debug_mode:bool = true;
 @export var current_subscriptions:Dictionary[int, PackedStringArray]
 
+var connection_options: SpacetimeDBConnectionOptions
 var pending_subscriptions:Dictionary[int, PackedStringArray]
 
 # --- Components ---
@@ -77,7 +78,7 @@ func initialize_and_connect():
 	add_child(_rest_api)
 
 	# 4. Initialize Connection Handler
-	_connection = SpacetimeDBConnection.new(compression, debug_mode)
+	_connection = SpacetimeDBConnection.new(connection_options)
 	_connection.connected.connect(func(): connected.emit())
 	_connection.disconnected.connect(func(): disconnected.emit())
 	_connection.connection_error.connect(func(c, r): connection_error.emit(c, r))
@@ -213,12 +214,15 @@ func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
 
 # --- Public API ---
 
-func connect_db(host_url:String, database_name:String, compression:SpacetimeDBConnection.CompressionPreference, one_time_token:bool = false, debug_mode:bool = false):
+func connect_db(host_url:String, database_name:String, options: SpacetimeDBConnectionOptions = null):
+	if not options:
+		options = SpacetimeDBConnectionOptions.new()
+	connection_options = options
 	self.base_url = host_url;
 	self.database_name = database_name;
-	self.compression = compression
-	self.one_time_token = one_time_token
-	self.debug_mode = debug_mode
+	self.compression = options.compression
+	self.one_time_token = options.one_time_token
+	self.debug_mode = options.debug_mode
 	if not _is_initialized:
 		initialize_and_connect()
 	elif not _connection.is_connected_db():
