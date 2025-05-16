@@ -88,12 +88,17 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
         # --- Choose ONE connection method ---
         # A) If Auto Connect is enabled in Autoload settings, it will connect automatically.
         # B) Connect manually:
+        var options = SpacetimeDBConnectionOptions.new()
+        options.compression = SpacetimeDBConnection.CompressionPreference.NONE
+        options.one_time_token = true
+        options.debug_mode = false
+        options.inbound_buffer_size = 1024 * 1024 * 2 # 2MB
+        options.outbound_buffer_size = 1024 * 1024 * 2 # 2MB
+
         SpacetimeDB.connect_db(
             "http://127.0.0.1:3000", # Base HTTP URL
             "my_game_database",     # Database Name
-            SpacetimeDBConnection.CompressionPreference.NONE, # Compression (NONE recommended)
-            false, # Use saved token if available (false = not one-time)
-            true   # Enable debug logging
+            options
         )
         # ------------------------------------
 
