@@ -2,8 +2,6 @@
 class_name SpacetimeDBConnection extends Node
 
 var _websocket := WebSocketPeer.new()
-@export var inbound_buffer_size: int = 1024 * 1024 * 2 # 2MB
-@export var outbound_buffer_size: int = 1024 * 1024 * 2 # 2MB
 var _target_url: String
 var _token: String
 var _is_connected := false
@@ -24,11 +22,11 @@ signal connection_error(code: int, reason: String)
 signal message_received(data: PackedByteArray) 
 signal total_bytes(sended: int, received: int)
 
-func _init(compression:CompressionPreference, debug_mode:bool):
-	_websocket.inbound_buffer_size = inbound_buffer_size
-	_websocket.outbound_buffer_size = outbound_buffer_size
-	set_compression_preference(compression)
-	self._debug_mode = debug_mode
+func _init(options: SpacetimeDBConnectionOptions):
+	_websocket.inbound_buffer_size = options.inbound_buffer_size
+	_websocket.outbound_buffer_size = options.outbound_buffer_size
+	set_compression_preference(options.compression)
+	self._debug_mode = options.debug_mode
 	set_process(false) # Don't process until connect is called
 	
 func print_log(log_message:String):

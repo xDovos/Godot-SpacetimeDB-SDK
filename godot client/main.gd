@@ -1,12 +1,18 @@
 extends Node3D
 
 func _ready():
+	var options = SpacetimeDBConnectionOptions.new()
+	
+	options.one_time_token = true # <--- anonymous-like. set to false to persist
+	options.debug_mode = false # <--- enables lots of additional debug prints and warnings
+	
+	# Increase buffer size. In general, you don't need this.
+	# options.set_all_buffer_size(1024 * 1024 * 2)
+	
 	SpacetimeDB.connect_db(
 		"https://flametime.cfd/spacetime", #WARNING <--- replace it with your url
 		"main", #WARNING <--- replace it with your database
-		SpacetimeDBConnection.CompressionPreference.NONE,
-		true, #WARNING <--- one time token. New window = new token
-		false #WARNING <--- debug mode, print logs
+		options
 		)
 
 	SpacetimeDB.connected.connect(_on_spacetimedb_connected)
