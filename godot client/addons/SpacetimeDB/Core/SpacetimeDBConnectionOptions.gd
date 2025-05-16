@@ -8,5 +8,5 @@ var inbound_buffer_size: int = 1024 * 1024 * 2 # 2MB
 var outbound_buffer_size: int = 1024 * 1024 * 2 # 2MB
 
 func set_all_buffer_size(size: int):
-    inbound_buffer_size = size
-    outbound_buffer_size = size
+	inbound_buffer_size = size
+	outbound_buffer_size = size
