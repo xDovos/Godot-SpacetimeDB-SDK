@@ -66,7 +66,6 @@ func apply_database_update(db_update: DatabaseUpdateData):
 
 func apply_table_update(table_update: TableUpdateData):
 	var table_name_lower := table_update.table_name.to_lower().replace("_","")
-	#print(table_name_lower)
 	if not _tables.has(table_name_lower):
 		printerr("LocalDatabase: Received update for unknown table '", table_update.table_name, "'")
 		# Optionally create the table entry: _tables[table_name_lower] = {}
