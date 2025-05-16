@@ -11,7 +11,7 @@ signal delete(row: Resource)
 
 func on_set(schema:Resource):
 	if schema != null:
-		name = "Receiver [%s]" % schema.resource_path.get_file()
+		name = "Receiver [%s]" % schema.get_script().get_global_name()
 		name = name.replace("_gd", "")
 	else:
 		name = "Receiver [EMPTY]"
@@ -25,13 +25,11 @@ func _ready() -> void:
 	SpacetimeDB.row_updated.connect(_on_update)
 	SpacetimeDB.row_deleted.connect(_on_delete)
 
-	if data_to_receive:
-		data_to_receive = data_to_receive.new()
-	else:
+	if not data_to_receive:
 		push_error("No data schema. Node path: ", get_path())
 		return;
-	
-	await get_parent().ready
+	if not get_parent().is_node_ready():
+		await get_parent().ready
 	
 	if SpacetimeDB.get_local_database() == null:
 		await SpacetimeDB.database_initialized
