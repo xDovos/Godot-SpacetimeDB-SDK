@@ -342,7 +342,6 @@ func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: D
 	# Call the determined reader function.
 	if reader_callable.get_object() == self:
 		var method_name = reader_callable.get_method()
-		
 		# Check if the method requires the full context (spb, resource, prop)
 		# Typically needed for recursive or context-aware readers.
 		match method_name:
@@ -370,7 +369,6 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 		var resource_id = resource.resource_path if resource.resource_path else resource.get_class()
 		print("DEBUG: _populate_resource: Populating '%s' at pos %d. Properties: %s" % [resource_id, spb.get_position(), prop_names])
 
-	# prints("\nPopulating resource '%s' at pos %d" % [resource.resource_path, spb.get_position()])
 	for prop in properties:
 		# Skip properties not meant for storage (e.g., editor-only, getters/setters without backing field)
 		if not (prop.usage & PROPERTY_USAGE_STORAGE):
@@ -383,7 +381,6 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 
 		# Read the value using the universal reader function
 		var value = _read_value_for_property(spb, resource, prop)
-		# prints("Value for", prop_name, "is", value)
 		# Check for errors *after* attempting to read
 		if has_error():
 			# Error should have been set by the reader function or _read_value_for_property
@@ -425,11 +422,31 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 
 # Populates the data property of a sumtype enum
 func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:	
-	var sum_type = resource.enum_sub_classes[resource.value]
-	var gd_sub_classes = resource.gd_sub_classes[resource.value]
+	var sum_type: StringName = resource.enum_sub_classes[resource.value]
+	var gd_sub_classes: StringName = resource.gd_sub_classes[resource.value]
 	if sum_type == &"enum":
 		resource.data = _read_enum(spb, resource, {"class_name": gd_sub_classes})
 		return true
+	if sum_type.begins_with("vec"):
+		var type: StringName = sum_type.get_slice("_", 1)
+		var reader: Callable = _get_primitive_reader_from_bsatn_type(type)
+		var length: int = read_u32_le(spb)
+		resource.data = Array()
+		if type == &"enum" and reader.is_valid():
+			for _i in range(length):
+				resource.data.append(reader.call(spb, resource, {"class_name": gd_sub_classes}))
+			return true
+		if reader.is_valid():
+			for _i in range(length):
+				resource.data.append(reader.call(spb))
+			return true
+		var script: Script = _possible_row_schemas.get(type.to_lower())
+		if script and script.can_instantiate():
+			for _i in range(length):
+				var new_resource = script.new()
+				_populate_resource_from_bytes(new_resource, spb)
+				resource.data.append(new_resource)
+			return true
 	var reader = _get_primitive_reader_from_bsatn_type(sum_type)
 	if reader.is_valid():
 		resource.data = reader.call(spb)
