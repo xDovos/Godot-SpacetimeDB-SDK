@@ -3,13 +3,13 @@
 extends Node
 class_name RowReceiver
 
-@export var data_to_receive: Resource : set=on_set;
+@export var data_to_receive: ModuleTable : set=on_set;
 
-signal insert(row: Resource)
-signal update(row: Resource, prev: Resource)
-signal delete(row: Resource)
+signal insert(row: ModuleTable)
+signal update(row: ModuleTable, prev: ModuleTable)
+signal delete(row: ModuleTable)
 
-func on_set(schema:Resource):
+func on_set(schema: ModuleTable):
 	if schema != null:
 		name = "Receiver [%s]" % schema.get_script().get_global_name()
 		name = name.replace("_gd", "")
@@ -39,17 +39,17 @@ func _ready() -> void:
 	for i in data:
 		_on_insert(data_to_receive.get_meta("table_name"), i)
 	
-func _on_insert(_table_name: String, row: Resource):
+func _on_insert(_table_name: String, row: ModuleTable):
 	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
 		return
 	insert.emit(row)
 
-func _on_update(_table_name: String, row: Resource, previous: Resource):
+func _on_update(_table_name: String, row: ModuleTable, previous: ModuleTable):
 	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
 		return
 	update.emit(row, previous)
 
-func _on_delete(_table_name: String, row: Resource):
+func _on_delete(_table_name: String, row: ModuleTable):
 	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
 		return
 	delete.emit(row)
