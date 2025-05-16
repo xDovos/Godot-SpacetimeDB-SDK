@@ -3,7 +3,7 @@
 extends Node
 class_name RowReceiver
 
-@export var data_to_receive: ModuleTable : set=on_set;
+@export var table_to_receive: ModuleTable : set=on_set;
 
 signal insert(row: ModuleTable)
 signal update(row: ModuleTable, prev: ModuleTable)
@@ -15,7 +15,7 @@ func on_set(schema: ModuleTable):
 		name = name.replace("_gd", "")
 	else:
 		name = "Receiver [EMPTY]"
-	data_to_receive = schema;
+	table_to_receive = schema;
 	pass;
 
 func _ready() -> void:
@@ -25,7 +25,7 @@ func _ready() -> void:
 	SpacetimeDB.row_updated.connect(_on_update)
 	SpacetimeDB.row_deleted.connect(_on_delete)
 
-	if not data_to_receive:
+	if not table_to_receive:
 		push_error("No data schema. Node path: ", get_path())
 		return;
 	if not get_parent().is_node_ready():
@@ -34,22 +34,22 @@ func _ready() -> void:
 	if SpacetimeDB.get_local_database() == null:
 		await SpacetimeDB.database_initialized
 	
-	var data = SpacetimeDB.get_local_database().get_all_rows(data_to_receive.get_meta("table_name"))
+	var data = SpacetimeDB.get_local_database().get_all_rows(table_to_receive.get_meta("table_name"))
 
 	for i in data:
-		_on_insert(data_to_receive.get_meta("table_name"), i)
+		_on_insert(table_to_receive.get_meta("table_name"), i)
 	
 func _on_insert(_table_name: String, row: ModuleTable):
-	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
+	if row.get_meta("table_name") != table_to_receive.get_meta("table_name"):
 		return
 	insert.emit(row)
 
 func _on_update(_table_name: String, row: ModuleTable, previous: ModuleTable):
-	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
+	if row.get_meta("table_name") != table_to_receive.get_meta("table_name"):
 		return
 	update.emit(row, previous)
 
 func _on_delete(_table_name: String, row: ModuleTable):
-	if row.get_meta("table_name") != data_to_receive.get_meta("table_name"):
+	if row.get_meta("table_name") != table_to_receive.get_meta("table_name"):
 		return
 	delete.emit(row)

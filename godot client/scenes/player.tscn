@@ -1,8 +1,8 @@
-[gd_scene load_steps=7 format=3 uid="uid://dvenminxkaei3"]
+[gd_scene load_steps=8 format=3 uid="uid://dvenminxkaei3"]
 
 [ext_resource type="Script" uid="uid://tvakv4fnjvt0" path="res://example_code/player.gd" id="1_3vyb7"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="2_qhqgy"]
-[ext_resource type="Script" uid="uid://lsr7vnaej2bt" path="res://spacetime_data/schema/tables/main_user_data.gd" id="3_qhqgy"]
+[ext_resource type="Script" uid="uid://dcx6vrvic26qk" path="res://spacetime_data/schema/tables/main_user_data.gd" id="3_qhqgy"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1bvp3"]
 
@@ -12,9 +12,24 @@
 resource_local_to_scene = true
 vertex_color_use_as_albedo = true
 
+[sub_resource type="Resource" id="Resource_qhqgy"]
+script = ExtResource("3_qhqgy")
+identity = PackedByteArray()
+online = false
+name = ""
+lobby_id = 0
+color = Color(0, 0, 0, 1)
+test_vec = Array[String]([])
+test_bytes_array = Array[int]([])
+last_position = Vector3(0, 0, 0)
+direction = Vector2(0, 0)
+player_speed = 0.0
+last_update = 0
+metadata/_custom_type_script = "uid://dcx6vrvic26qk"
+
 [node name="CharacterBody3D" type="CharacterBody3D" node_paths=PackedStringArray("receiver")]
 script = ExtResource("1_3vyb7")
-receiver = NodePath("Receiver [main_user_data]")
+receiver = NodePath("Receiver [MainUserData]")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_1bvp3")
@@ -29,7 +44,7 @@ pixel_size = 0.02
 billboard = 1
 text = "Hello world"
 
-[node name="Receiver [main_user_data]" type="Node" parent="."]
+[node name="Receiver [MainUserData]" type="Node" parent="."]
 script = ExtResource("2_qhqgy")
-data_to_receive = ExtResource("3_qhqgy")
+table_to_receive = SubResource("Resource_qhqgy")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
