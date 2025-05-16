@@ -1,11 +1,18 @@
-[gd_scene load_steps=7 format=3 uid="uid://bbffb4bvr3yin"]
+[gd_scene load_steps=8 format=3 uid="uid://bbffb4bvr3yin"]
 
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_u1py6"]
 [ext_resource type="Script" uid="uid://dem1ds2t7l6l4" path="res://example_code/lobby_holder.gd" id="2_6b2w0"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_6b2w0"]
-[ext_resource type="Script" uid="uid://b6o8vwdh3cgrd" path="res://spacetime_data/schema/tables/main_user.gd" id="3_xse7d"]
+[ext_resource type="Script" uid="uid://cctpysb30trte" path="res://spacetime_data/schema/tables/main_user.gd" id="3_xse7d"]
 [ext_resource type="Script" uid="uid://bbu2mhwjr4hlq" path="res://example_code/players.gd" id="5_4c4fm"]
 [ext_resource type="PackedScene" uid="uid://bn1hfkbb68wno" path="res://scenes/mouse.tscn" id="6_6b2w0"]
+
+[sub_resource type="Resource" id="Resource_6b2w0"]
+script = ExtResource("3_xse7d")
+identity = PackedByteArray()
+online = false
+lobby_id = 0
+metadata/_custom_type_script = "uid://cctpysb30trte"
 
 [node name="Node2D" type="Node2D"]
 
@@ -14,11 +21,11 @@ script = ExtResource("1_u1py6")
 
 [node name="lobby_holder" type="Node" parent="." node_paths=PackedStringArray("receiver")]
 script = ExtResource("2_6b2w0")
-receiver = NodePath("Receiver [main_user]")
+receiver = NodePath("Receiver [MainUser]")
 
-[node name="Receiver [main_user]" type="Node" parent="lobby_holder"]
+[node name="Receiver [MainUser]" type="Node" parent="lobby_holder"]
 script = ExtResource("3_6b2w0")
-data_to_receive = ExtResource("3_xse7d")
+table_to_receive = SubResource("Resource_6b2w0")
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 
 [node name="Players" type="Node2D" parent="."]
