@@ -21,6 +21,7 @@ func on_set(schema: ModuleTable):
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return;
+		
 	SpacetimeDB.row_inserted.connect(_on_insert)
 	SpacetimeDB.row_updated.connect(_on_update)
 	SpacetimeDB.row_deleted.connect(_on_delete)
@@ -28,17 +29,20 @@ func _ready() -> void:
 	if not table_to_receive:
 		push_error("No data schema. Node path: ", get_path())
 		return;
-	if not get_parent().is_node_ready():
+	
+	if get_parent() and not get_parent().is_node_ready():
 		await get_parent().ready
-	
-	if SpacetimeDB.get_local_database() == null:
-		await SpacetimeDB.database_initialized
-	
-	var data = SpacetimeDB.get_local_database().get_all_rows(table_to_receive.get_meta("table_name"))
 
-	for i in data:
-		_on_insert(table_to_receive.get_meta("table_name"), i)
-	
+	var db = SpacetimeDB.get_local_database()
+
+	if db == null:
+		await SpacetimeDB.database_initialized
+	else:
+		var table_name_str = table_to_receive.get_meta("table_name")
+		var data = db.get_all_rows(table_name_str)
+		for row_data in data:
+			_on_insert(table_name_str, row_data)
+			
 func _on_insert(_table_name: String, row: ModuleTable):
 	if row.get_meta("table_name") != table_to_receive.get_meta("table_name"):
 		return
