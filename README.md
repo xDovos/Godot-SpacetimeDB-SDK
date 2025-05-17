@@ -106,7 +106,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
     *   **A) Using `RowReceiver` Node (Recommended for specific tables):**
         1.  Add a `RowReceiver` node to your scene.
         2.  In the Inspector, set `Table To Receive` to your schema resource via dropdown menu (e.g., `PlayerData`).
-        3.  Connect to its `insert(row)`, `update(row, previous)` and `delete(row)` signals.
+        3.  Connect to its `insert(row)`, `update(previous_row, new_row)` and `delete(row)` signals.
 
         ```gdscript
         # Script needing player updates
