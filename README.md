@@ -245,7 +245,7 @@ There are static functions to create specific enum variants in godot as well as 
 The following is how to create and match through and enum:
 ```gdscript
 var cc = TestModule.CharacterClass.create_warrior([1,2,3,4,5])
-match cc:
+match cc.value:
 	cc.Warrior:
 		var warrior: = cc.get_warrior()
 		var first: = warrior[0]
