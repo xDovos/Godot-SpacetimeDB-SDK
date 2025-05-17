@@ -6,7 +6,7 @@ class_name RowReceiver
 @export var table_to_receive: ModuleTable : set=on_set;
 
 signal insert(row: ModuleTable)
-signal update(row: ModuleTable, prev: ModuleTable)
+signal update(prev: ModuleTable, row: ModuleTable)
 signal delete(row: ModuleTable)
 
 func on_set(schema: ModuleTable):
