@@ -105,7 +105,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
 
     *   **A) Using `RowReceiver` Node (Recommended for specific tables):**
         1.  Add a `RowReceiver` node to your scene.
-        2.  In the Inspector, set `Data To Receive` to your schema resource (e.g., `PlayerData.tres` or `.gd`).
+        2.  In the Inspector, set `Table To Receive` to your schema resource via dropdown menu (e.g., `PlayerData`).
         3.  Connect to its `insert(row)`, `update(row, previous)` and `delete(row)` signals.
 
         ```gdscript
@@ -214,7 +214,7 @@ The SDK handles serialization between Godot types and SpacetimeDB's BSATN format
 *   **Default Mappings:**
     *   `bool` <-> `bool`
     *   `int` <-> `i64` (Signed 64-bit integer)
-    *   `float` <-> `f32` (Single-precision float)
+    *   `float` <-> `f64` (Single-precision float)
     *   `String` <-> `String` (UTF-8)
     *   `Vector2`/`Vector3`/`Color`/`Quaternion` <-> Matching server struct (f32 fields)
     *   `PackedByteArray` <-> `Vec<u8>` (Default) OR `Identity` 
