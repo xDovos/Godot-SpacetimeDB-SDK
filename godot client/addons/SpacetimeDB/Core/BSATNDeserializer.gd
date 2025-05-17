@@ -271,7 +271,6 @@ func _get_primitive_reader_from_bsatn_type(bsatn_type_str: String) -> Callable:
 		&"vec_u8": return Callable(self, "read_vec_u8")
 		&"bool": return Callable(self, "read_bool")
 		&"string": return Callable(self, "read_string_with_u32_len")
-		&"enum": return Callable(self, "_read_enum")
 		_: return Callable() # Return invalid Callable if type is not primitive/known
 
 # Determines the correct reader function (Callable) for a given property.
@@ -345,7 +344,7 @@ func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: D
 		# Check if the method requires the full context (spb, resource, prop)
 		# Typically needed for recursive or context-aware readers.
 		match method_name:
-			"_read_array", "_read_nested_resource", "_read_array_of_table_updates", "_read_enum":
+			"_read_array", "_read_nested_resource", "_read_array_of_table_updates":
 				return reader_callable.call(spb, resource, prop) # Pass full context
 			_: 
 				# Standard primitive/complex readers usually only need the buffer.
@@ -361,6 +360,10 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 	if not resource or not resource.get_script():
 		_set_error("Cannot populate null or scriptless resource", -1 if not spb else spb.get_position())
 		return false
+	
+	# Check if resource is a Rust enum and handle special case
+	if resource is RustEnum:
+		return _populate_enum_from_bytes(spb, resource)
 
 	var properties: Array = resource.get_script().get_script_property_list()
 	if debug_mode:
@@ -420,22 +423,27 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 
 	return true # Successfully populated all properties
 
+# Populates the value property of a sumtype enum
+func _populate_enum_from_bytes(spb: StreamPeerBuffer, resource: Resource) -> bool:
+	var enum_type = resource.get_meta("bsatn_enum_type")
+	var enum_variant: int = spb.get_u8()
+	var instance: Resource = null
+	var script: Script = _possible_row_schemas.get(enum_type.to_lower())
+	if script and script.can_instantiate():
+		instance = script.new()
+		resource.value = enum_variant
+		_populate_enum_data_from_bytes(resource, spb)
+	return true
+
 # Populates the data property of a sumtype enum
 func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:	
-	var sum_type: StringName = resource.enum_sub_classes[resource.value]
-	var gd_sub_classes: StringName = resource.gd_sub_classes[resource.value]
-	if sum_type == &"enum":
-		resource.data = _read_enum(spb, resource, {"class_name": gd_sub_classes})
-		return true
-	if sum_type.begins_with("vec"):
-		var type: StringName = sum_type.get_slice("_", 1)
+	var enum_type: StringName = resource.get_meta("enum_options")[resource.value]
+	# Special handling for Vec<T>
+	if enum_type.begins_with("vec"):
+		var type: StringName = enum_type.get_slice("_", 1)
 		var reader: Callable = _get_primitive_reader_from_bsatn_type(type)
 		var length: int = read_u32_le(spb)
 		resource.data = Array()
-		if type == &"enum" and reader.is_valid():
-			for _i in range(length):
-				resource.data.append(reader.call(spb, resource, {"class_name": gd_sub_classes}))
-			return true
 		if reader.is_valid():
 			for _i in range(length):
 				resource.data.append(reader.call(spb))
@@ -447,11 +455,13 @@ func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -
 				_populate_resource_from_bytes(new_resource, spb)
 				resource.data.append(new_resource)
 			return true
-	var reader = _get_primitive_reader_from_bsatn_type(sum_type)
+		return false
+		
+	var reader = _get_primitive_reader_from_bsatn_type(enum_type)
 	if reader.is_valid():
 		resource.data = reader.call(spb)
 		return true
-	var script: Script = _possible_row_schemas.get(gd_sub_classes.to_lower())
+	var script: Script = _possible_row_schemas.get(enum_type.to_lower())
 	if script and script.can_instantiate():
 		resource.data = script.new()
 		_populate_resource_from_bytes(resource.data, spb)
@@ -459,16 +469,6 @@ func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -
 	return false
 
 # --- Special Readers ---
-#Reads a sumtype enum
-func _read_enum(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> Resource:
-	var enum_variant: int = spb.get_u8()
-	var instance: Resource = null
-	var script: Script = _possible_row_schemas.get(prop.class_name.to_lower())
-	if script and script.can_instantiate():
-		instance = script.new()
-		instance.value = enum_variant
-		_populate_enum_data_from_bytes(instance, spb)
-	return instance
 
 # Reads an array property.
 func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> Array:

@@ -128,20 +128,20 @@ func write_vec_u8(v: PackedByteArray) -> void:
 	if v.size() > 0: write_bytes(v) # Avoid calling put_data with empty array if possible
 
 #Writes a Rust sum type enum
-func write_rust_enum(value):
-	write_u8(value.value)
-	var sub_class: String = value.enum_sub_classes[value.value]
+func write_rust_enum(rust_enum: RustEnum) -> void:
+	write_u8(rust_enum.value)
+	var sub_class: String = rust_enum.get_meta("enum_options")[rust_enum.value]
 	if sub_class.begins_with("vec"):
-		if value.data is not Array:
+		if rust_enum.data is not Array:
 			_set_error("Sum type of rust enum is Vec<T> but the godot type is not an array.")
 			return
 		var vec_type = sub_class.get_slice("_", 1)
-		write_u32_le(value.data.size()) # Write array length (u32)
-		for element in value.data:
+		write_u32_le(rust_enum.data.size()) # Write array length (u32)
+		for element in rust_enum.data:
 			_write_argument_value(element, vec_type)
 		return
 	if not sub_class.is_empty():
-		var data = value.data
+		var data = rust_enum.data
 		if not data:
 			data = _generate_default_type(sub_class)
 		_write_argument_value(data, sub_class)
@@ -217,7 +217,9 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 						if not has_error(): _set_error("Failed to write array element.") # Ensure error is set
 						return false
 			TYPE_OBJECT:
-				if value is Resource:
+				if value is RustEnum:
+					write_rust_enum(value)
+				elif value is Resource:
 					# Serialize nested resource fields *inline* without length prefix
 					if not _serialize_resource_fields(value): # Recursive call
 						# Error should be set by _serialize_resource_fields
@@ -236,7 +238,11 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 func _serialize_resource_fields(resource: Resource) -> bool:
 	if not resource or not resource.get_script():
 		_set_error("Cannot serialize fields of null or scriptless resource"); return false
-
+	
+	if resource is RustEnum:
+		write_rust_enum(resource)
+		return true
+	
 	var properties: Array = resource.get_script().get_script_property_list()
 	for prop in properties:
 		# Only serialize properties marked for storage
@@ -341,7 +347,7 @@ func _write_argument_value(value, rust_type: String = "") -> bool:
 			for v in value:
 				_write_argument_value(v, rust_type)
 		TYPE_OBJECT:
-			if rust_type == &"enum":
+			if value is RustEnum:
 				write_rust_enum(value)
 			elif value is Resource:
 				# Serialize resource fields directly inline (recursive)
