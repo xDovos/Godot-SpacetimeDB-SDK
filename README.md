@@ -205,6 +205,62 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
         return []
     ```
 
+9. **Rust Enums In Godot:**
+There is full support for rust enum sumtypes when derived from SpacetimeType.
+
+The following is fully supported syntax:
+```rs
+#[derive(spacetimedb::SpacetimeType, Debug, Clone)]
+pub enum CharacterClass {
+    Warrior(Vec<i32>),
+    Mage(CharacterMageData),
+    Archer(ArcherOptions),
+}
+
+#[derive(SpacetimeType, Debug, Clone)]
+pub struct CharacterMageData {
+    mana: u32,
+    spell_power: u32,
+    other: Vec<u8>,
+}
+
+#[derive(SpacetimeType, Debug, Clone)]
+pub enum ArcherOptions {
+    None,
+    Bow(BowOptions),
+    Crossbow,
+}
+
+#[derive(SpacetimeType, Debug, Clone)]
+pub enum BowOptions {
+    None,
+    Longbow,
+    Shortbow,
+}
+```
+This will codegen the following for CharacterClass:
+![image](https://github.com/user-attachments/assets/cdd5cddd-8a15-4da2-a0bb-ef0a1e446883)
+
+There are static functions to create specific enum variants in godot as well as getters to return the variant as the specific type.
+The following is how to create and match through and enum:
+```gdscript
+var cc = TestModule.CharacterClass.create_warrior([1,2,3,4,5])
+match cc:
+	cc.Warrior:
+		var warrior: = cc.get_warrior()
+		var first: = warrior[0]
+		print_debug("Warrior:", first)
+```
+With this you will have full support for code completion due to strong types being returned.
+![image](https://github.com/user-attachments/assets/ddfeab8b-1423-41b0-84ca-52af19c96015)
+
+![image](https://github.com/user-attachments/assets/3bb7cac8-78d4-40b7-90f8-20e19274d94a)
+
+Since BowOptions in rust is not being used as a sumtype in godot it becomes just a standard enum.
+
+![image](https://github.com/user-attachments/assets/0c4b4c00-c479-47cc-a459-394b917457c1)
+
+	
 ## Technical Details
 
 ### Type System & Serialization
@@ -234,6 +290,7 @@ The SDK handles serialization between Godot types and SpacetimeDB's BSATN format
 *   **Byte Arrays:** `PackedByteArray` (maps to `Vec<u8>` or `Identity`)
 *   **Collections:** `Array[T]` (requires typed `@export` hint)
 *   **Custom Resources:** Nested `Resource` classes defined in your schema path.
+*   **Rust Enums:** Code generator creates a RustEnum class in Godot
 
 ### API Reference (High Level - via `SpacetimeDB` Singleton)
 
