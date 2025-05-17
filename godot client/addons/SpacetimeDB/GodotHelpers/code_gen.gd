@@ -2,6 +2,7 @@
 class_name Codegen extends Resource
 var OPTION_HANDLING: = RustOptionHandling.OPTION_T_AS_T
 var HIDE_PRIVATE_TABLES: = true
+var HIDE_SCHEDULED_REDUCERS: = true
 const PLUGIN_DATA_FOLDER = "spacetime_data"
 const CODEGEN_FOLDER = "schema"
 const REQUIRED_FOLDERS_IN_CODEGEN_FOLDER = ["tables", "spacetime_types"]
@@ -61,6 +62,22 @@ enum RustOptionHandling {
 
 func _init() -> void:
 	TYPE_MAP.merge(GDNATIVE_TYPES)
+	if not FileAccess.file_exists("res://%s/%s" %[PLUGIN_DATA_FOLDER, "codegen_config.json"]):
+		var file = FileAccess.open("res://%s/%s" %[PLUGIN_DATA_FOLDER , "codegen_config.json"], FileAccess.WRITE)
+		file.store_string(JSON.stringify({
+			"config_version": 1,
+			"option_handling": OPTION_HANDLING,
+			"handling types": "ignore = 1, use_godot_option = 2, option_t_as_t = 3",
+			"hide_scheduled_reducers": HIDE_SCHEDULED_REDUCERS,
+			"hide_private_tables": HIDE_PRIVATE_TABLES
+		}, "\t", false))
+		file.close()
+	var file = FileAccess.open("res://%s/%s" %[PLUGIN_DATA_FOLDER , "codegen_config.json"], FileAccess.READ)
+	var config = JSON.parse_string(file.get_as_text())
+	file.close()
+	HIDE_SCHEDULED_REDUCERS = config.get("hide_scheduled_reducers", HIDE_SCHEDULED_REDUCERS)
+	HIDE_PRIVATE_TABLES = config.get("hide_private_tables", HIDE_PRIVATE_TABLES)
+	OPTION_HANDLING = config.get("option_handling", OPTION_HANDLING)
 
 func _on_request_completed(json_string: String, module_name: String) -> Array[String]:
 	var json = JSON.parse_string(json_string)
@@ -297,6 +314,7 @@ func generate_types_gdscript(schema: Dictionary, const_pointer: bool = false) ->
 func generate_reducer_gdscript(schema: Dictionary) -> String:
 	var content: String
 	for reducer in schema.get("reducers", []):
+		if reducer.get("is_scheduled", false) and HIDE_SCHEDULED_REDUCERS: continue
 		var params_str: String = ""
 		for param in reducer.get("params", []):
 			var param_name: String = param.get("name", "")
@@ -336,11 +354,12 @@ func generate_module_link(modules: Array[String]) -> void:
 
 func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 	var schema_tables: Array = schema.get("tables", [])
-	var schema_types: Array= schema.get("types", [])
+	var schema_types: Array = schema.get("types", [])
 	var schema_reducers: Array = schema.get("reducers", [])
 	var typespace: Array = schema.get("typespace", {}).get("types", [])
 	schema_types.sort_custom(func(a, b): return a.get("ty", -1) < b.get("ty", -1))
 	var types := []
+	var scheduled_reducers: Array[String] = []
 
 	for type_info in schema_types:
 		var type_name: String = type_info.get("name", {}).get("name", null)
@@ -437,6 +456,10 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 			types[ref].primary_key_name = types[ref].struct[primary_key[0]].name
 		if table_info.get("table_access", {}).has("Private"):
 			types[ref].is_private = true
+		if table_info.get("schedule", {}).has("some"):
+			var schedule = table_info.get("schedule", {}).some
+			types[ref].schedule = schedule
+			scheduled_reducers.append(schedule.reducer_name)
 	
 	var reducers := []
 	for reducer_info in schema_reducers:
@@ -444,6 +467,7 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		if lifecycle: continue
 		var name = reducer_info.get("name", null)
 		var params := []
+		var reducer_data: Dictionary = {"name": name}
 		for p in reducer_info.get("params", {}).get("elements", []):
 			var data := {
 				"name": p.get("name",{}).get("some", null),
@@ -464,10 +488,10 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 				param_type = param_type.keys()[0]
 			data["type"] = param_type
 			params.append(data)
-		reducers.append({
-			"name": name,
-			"params": params
-		})
+		reducer_data["params"] = params
+		if name in scheduled_reducers:
+			reducer_data["is_scheduled"] = true
+		reducers.append(reducer_data)
 
 	var parsed_schema = {
 		"module": module_name.to_pascal_case(),
