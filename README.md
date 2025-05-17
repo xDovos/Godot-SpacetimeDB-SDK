@@ -8,15 +8,20 @@ This SDK provides the necessary tools to integrate your Godot Engine project wit
 
 Follow these steps to get your Godot project connected to SpacetimeDB:
 
-1.  **Copy Addon:** Download the `SpacetimeDB` folder and copy it into your Godot project's `addons/` directory. Create the `addons/` directory at the root of your project if it doesn't exist.
+1. Upload your SpacetimeDB module
+
+    Our code-gen tool uses the SpacetimeDB API endpoint to generate all types and reducers, so first upload your SpacetimeDB module to the server.
+   
+    IMPORTANT: Every table must have a primary key for the local database and deserialization to work correctly.
+ 
+3.  **Copy Addon:** Download the `SpacetimeDB` folder and copy it into your Godot project's `addons/` directory. Create the `addons/` directory at the root of your project if it doesn't exist.
     ```
     YourGodotProject/
     ├── addons/
     │   └── SpacetimeDB/
-    │       ├── plugin.cfg
-    │       └── ... (SDK files)
-    ├── project.godot
-    └── ... (your game files)
+    ├── spacetime_data
+    │   └── All generated code and plugin data
+    └── your game files
     ```
 
 2.  **Enable Plugin:**
@@ -24,55 +29,18 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
     *   Go to `Project -> Project Settings -> Plugins`.
     *   Find "SpacetimeDB" and check "Enable".
     *   This registers `SpacetimeDB` as an **Autoload Singleton**, making it globally accessible via the name `SpacetimeDB`.
+3. **Setup plugin and generate code**
+    * Open the new SpacetimeDB tab in the bottom dock.
+    * Replace the default URL with your server’s URL.
+    * Click `+` to add a module
+    * Name the module exactly as you published it (e.g., main)
+    * Click `Generate schema` button
+    * The generated code now appears in the `spacetime_data/` folder.
+      
+![image](https://github.com/user-attachments/assets/bd4aef29-8528-43c7-8011-c1e9df05537f)
 
-3.  **Create Schema Resources:**
-    *   In a dedicated directory (e.g., `res://schema/`), create `.gd` scripts inheriting from `Resource` for **each table** in your SpacetimeDB module. Use `class_name` for easier referencing.
-    *   Use `@export` for each field, ensuring the **name and order** exactly match your Rust struct definition.
-    *   Use appropriate Godot types (`PackedByteArray` for `Identity`, `int` for numbers, `float` for floats, `String`, `bool`, `Vector2`, `Vector3`, `Color`, `Quaternion`, `Array[Type]`).
-    *   **Crucially:** Add metadata in the `_init()` function of each schema resource using `set_meta()`:
-        *   `set_meta("table_name", "YourTableName")` - *(Optional)* Defaults to the script's filename if omitted. Helps ensure the correct table name is used internally.
-        *   `set_meta("primary_key", "your_pk_field_name")` - **Required.** Specify the `@export`ed field name used as the primary key.
-        *   `set_meta("bsatn_type_your_int_field", "u32")` (or `i8`, `u8`, `i16`, `u16`, `i32`, `u64`, `i64`) - **Required for non-i64 integers.** Specify the exact BSATN integer type for **all** `@export var field_name: int` properties that *are not* `i64` on the server.
-        *   `set_meta("bsatn_type_your_float_field", "f64")` - **Required for f64 floats.** Specify if a field uses `f64` instead of the default `f32`.
-
-    **Example (`res://schema/player_data.gd`):**
-    ```gdscript
-    # Assumes Rust struct:
-    # #[spacetimedb(table)]
-    # pub struct PlayerData {
-    #     #[primarykey]
-    #     identity: Identity,
-    #     name: String,
-    #     health: u32,
-    #     ammo: i16,
-    #     last_seen: Timestamp, // i64
-    #     pos: Vector2, // f32, f32
-    # }
-    extends Resource
-    class_name PlayerData
-
-    @export var identity: PackedByteArray # SpacetimeDB Identity (32 bytes)
-    @export var name: String
-    @export var health: int # Represents u32 on server
-    @export var ammo: int   # Represents i16 on server
-    @export var last_seen: int # Represents i64 (Timestamp) on server
-    @export var pos: Vector2
-
-    func _init():
-        set_meta("table_name", "PlayerData") # Good practice
-        set_meta("primary_key", "identity") # REQUIRED
-        # REQUIRED for non-i64 integers:
-        set_meta("bsatn_type_health", "u32")
-        set_meta("bsatn_type_ammo", "i16")
-        # Not required for last_seen as int defaults to i64
-        # Not required for pos as Vector2 defaults to f32
-    ```
-    **!!! IMPORTANT: Every table MUST have a primary key defined via `set_meta("primary_key", ...)` for the local database and deserialization to work correctly !!!**
-
-4.  **Configure & Connect:**
-    *   *(Optional)* Configure default connection settings via the Editor: `Project -> Project Settings -> Autoload`, select `SpacetimeDB`. Set `Base Url`, `Database Name`, `Schema Path`, etc. Check `Auto Connect` if desired.
-    *   Connect programmatically (if not using Auto Connect or need dynamic connection) and listen to signals in a main script (e.g., `_ready()`):
-
+5.  **Configure & Connect:**
+    *   Connect:
     ```gdscript
     # In your main scene script or another Autoload
 
@@ -85,9 +53,6 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
         SpacetimeDB.database_initialized.connect(_on_spacetimedb_database_initialized)
         SpacetimeDB.transaction_update_received.connect(_on_transaction_update) # For reducer results
 
-        # --- Choose ONE connection method ---
-        # A) If Auto Connect is enabled in Autoload settings, it will connect automatically.
-        # B) Connect manually:
         var options = SpacetimeDBConnectionOptions.new()
         options.compression = SpacetimeDBConnection.CompressionPreference.NONE
         options.one_time_token = true
@@ -97,7 +62,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
 
         SpacetimeDB.connect_db(
             "http://127.0.0.1:3000", # Base HTTP URL
-            "my_game_database",     # Database Name
+            "my_module",     # Module Name
             options
         )
         # ------------------------------------
@@ -136,7 +101,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
             # Optionally inspect update.status.committed_update for DB changes
     ```
 
-5.  **React to Data Changes:** You have two main ways:
+6.  **React to Data Changes:** You have two main ways:
 
     *   **A) Using `RowReceiver` Node (Recommended for specific tables):**
         1.  Add a `RowReceiver` node to your scene.
@@ -202,24 +167,26 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
                 _despawn_player(primary_key) # Your function needs to handle lookup by PK
         ```
 
-6.  **Call Reducers:** Use `SpacetimeDB.call_reducer(reducer_name, args_array, types_array)` to trigger server-side logic.
+7.  **Call Reducers:** Use generated code to trigger server-side logic.
 
     ```gdscript
     func move_player(direction: Vector2):
         if not SpacetimeDB.is_connected_db(): return
-        var req_id = SpacetimeDB.call_reducer("move", [direction])
-        if req_id < 0:
-            printerr("Failed to call 'move' reducer.")
-        # Response/errors handled via the 'transaction_update_received' signal connection
-
-    func send_chat(message: String):
-         if not SpacetimeDB.is_connected_db(): return
-         var req_id = SpacetimeDB.call_reducer("send_message", [message])
-         var req_id_2 = SpacetimeDB.call_reducer("send_u8", [1], ["u8"])
-         # ... handle potential errors via signal ...
+    
+        #You can use callback, but it doesn`t required
+        #Example with callback 
+        SpacetimeModule.Main.Reducers.move_user(direction, global_position, func(_t:TransactionUpdateData): 
+		    print("Result:", _t)
+		    pass)
+    
+        #Example without callback
+        SpacetimeModule.Main.Reducers.move_user(direction, global_position)
+    
+        #Or use module name 
+        MainModule.move_user(direction, global_position)
     ```
 
-7.  **Query Local Database:** Access the cached data synchronously at any time.
+8.  **Query Local Database:** Access the cached data synchronously at any time.
 
     ```gdscript
     func get_player_health(identity: PackedByteArray) -> int:
@@ -234,7 +201,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
     func get_all_cached_players() -> Array[PlayerData]:
         var db = SpacetimeDB.get_local_database()
         if db:
-            return db.get_all_rows("PlayerData") # Returns Array[Resource], cast if needed
+            return db.get_all_rows("PlayerData") # Returns Array[ModuleTable], cast if needed
         return []
     ```
 
@@ -286,7 +253,6 @@ The SDK handles serialization between Godot types and SpacetimeDB's BSATN format
 
 ## Limitations & TODO
 
-*   **Manual Schema Sync:** GDScript Resources must be manually created and kept in sync (name, type, order) with Rust structs. Code generation is planned.
 *   **`Option<T>` Not Supported:** Rust's `Option<T>` cannot be directly mapped. Avoid using it in table definitions or implement workarounds.
 *   **Compression:** As noted above, only uncompressed messages are fully supported bidirectionally.
 *   **`unsubscribe()`:** May not function reliably in all cases.
@@ -294,6 +260,4 @@ The SDK handles serialization between Godot types and SpacetimeDB's BSATN format
 *   **Configuration:** More options could be added (timeouts, reconnection).
 
 ## License
-
-<!-- [PLACEHOLDER: Specify your license, e.g.:] -->
 This project is licensed under the MIT License.
