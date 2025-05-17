@@ -81,7 +81,7 @@ anchor_right = 1.0
 offset_right = -480.0
 offset_bottom = 48.0
 grow_horizontal = 2
-text = "https://flametime.cfd/spacetime"
+text = "http://127.0.0.1:3000"
 placeholder_text = "Server Uri"
 
 [node name="Panel" type="Panel" parent="."]
