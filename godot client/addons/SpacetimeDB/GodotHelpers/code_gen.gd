@@ -1,12 +1,15 @@
 @tool
 class_name Codegen extends Resource
-var OPTION_HANDLING: = RustOptionHandling.ARRAY_HACK
 var HIDE_PRIVATE_TABLES: = true
 var HIDE_SCHEDULED_REDUCERS: = true
 const PLUGIN_DATA_FOLDER = "spacetime_data"
 const CODEGEN_FOLDER = "schema"
 const REQUIRED_FOLDERS_IN_CODEGEN_FOLDER = ["tables", "spacetime_types"]
-
+var CONFIG: Dictionary = {
+	"config_version": 2,
+	"hide_scheduled_reducers": HIDE_SCHEDULED_REDUCERS,
+	"hide_private_tables": HIDE_PRIVATE_TABLES
+}
 const GDNATIVE_TYPES := {
 	"I8": "int",
 	"I16": "int",
@@ -53,32 +56,29 @@ var META_TYPE_MAP := {
 	"__time_duration_micros__": "i64",
 }
 
-enum RustOptionHandling {
-	IGNORE = 1, #This will not generate any fields for Option<T> types.
-	USE_GODOT_OPTION = 2, #https://github.com/WhoStoleMyCoffee/godot-optional/tree/main
-	OPTION_T_AS_T = 3, #This will use Option<T> as T in GDScript. This may have issues with nullability in Godot, so use with caution.
-	ARRAY_HACK = 4
-}
-
-
 func _init() -> void:
 	TYPE_MAP.merge(GDNATIVE_TYPES)
 	if not FileAccess.file_exists("res://%s/%s" %[PLUGIN_DATA_FOLDER, "codegen_config.json"]):
 		var file = FileAccess.open("res://%s/%s" %[PLUGIN_DATA_FOLDER , "codegen_config.json"], FileAccess.WRITE)
-		file.store_string(JSON.stringify({
-			"config_version": 1,
-			"option_handling": OPTION_HANDLING,
-			"handling types": "ignore = 1, use_godot_option = 2, option_t_as_t = 3",
-			"hide_scheduled_reducers": HIDE_SCHEDULED_REDUCERS,
-			"hide_private_tables": HIDE_PRIVATE_TABLES
-		}, "\t", false))
+		file.store_string(JSON.stringify(CONFIG, "\t", false))
 		file.close()
 	var file = FileAccess.open("res://%s/%s" %[PLUGIN_DATA_FOLDER , "codegen_config.json"], FileAccess.READ)
 	var config = JSON.parse_string(file.get_as_text())
 	file.close()
 	HIDE_SCHEDULED_REDUCERS = config.get("hide_scheduled_reducers", HIDE_SCHEDULED_REDUCERS)
 	HIDE_PRIVATE_TABLES = config.get("hide_private_tables", HIDE_PRIVATE_TABLES)
-	OPTION_HANDLING = config.get("option_handling", OPTION_HANDLING)
+	update_config(config)
+	
+func update_config(config: Dictionary) -> void:
+	var version = config.get("config_version")
+	if version < CONFIG.get("config_version"):
+		var file = FileAccess.open("res://%s/%s" %[PLUGIN_DATA_FOLDER , "codegen_config.json"], FileAccess.WRITE)
+		file.store_string(JSON.stringify({
+			"config_version": 2,
+			"hide_scheduled_reducers": HIDE_SCHEDULED_REDUCERS,
+			"hide_private_tables": HIDE_PRIVATE_TABLES
+		}, "\t", false))
+		file.close()
 
 func _on_request_completed(json_string: String, module_name: String) -> Array[String]:
 	var json = JSON.parse_string(json_string)
@@ -178,7 +178,7 @@ func generate_struct_gdscript(type, module_name, table_names) -> String:
 	var _extends_class = "Resource"
 	if table_name:
 		# meta_data.append("set_meta('table_name', '%s')" % table_name)
-		_extends_class = "ModuleTable"
+		_extends_class = "_ModuleTable"
 		var primary_key_name: String = type.get("primary_key_name", "")
 		if primary_key_name:
 			meta_data.append("set_meta('primary_key', '%s')" % primary_key_name)
@@ -199,12 +199,7 @@ func generate_struct_gdscript(type, module_name, table_names) -> String:
 		var field_name: String = field.get("name", "")
 		var field_type: String = TYPE_MAP.get(field.get("type", ""), "")
 		if field.has("is_option"):
-			match OPTION_HANDLING:
-				RustOptionHandling.IGNORE: continue
-				RustOptionHandling.USE_GODOT_OPTION:
-					field_type = "Option"
-				RustOptionHandling.ARRAY_HACK:
-					field_type = "Option"
+			field_type = "Option"
 		if field.has("is_array"):
 			field_type = "Array[%s]" % field_type
 		var meta: String = META_TYPE_MAP.get(field.get("type", ""), "")
@@ -213,11 +208,9 @@ func generate_struct_gdscript(type, module_name, table_names) -> String:
 				% [field_name, meta])
 		if field.has("is_option"):
 			if meta.is_empty():
-				Spacetime.print_log("Dont meta for option : " + field.get("type"))
 				meta_data.append("set_meta('bsatn_type_%s', &'%s')" 
 					% [field_name, field.get("type")])
 			else:
-				Spacetime.print_log("Find meta for option : " + meta)
 				meta_data.append("set_meta('bsatn_type_%s', &'%s')" 
 					% [field_name, meta])
 		content += "@export var %s: %s\n" % [field_name, field_type]

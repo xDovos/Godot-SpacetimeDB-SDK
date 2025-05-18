@@ -3,16 +3,16 @@
 extends Node
 class_name RowReceiver
 
-@export var table_to_receive: ModuleTable : set = on_set;
+@export var table_to_receive: _ModuleTable : set = on_set;
 var selected_table_name: String : set = set_selected_table_name
 
 var _derived_table_names: Array[String] = []
 
-signal insert(row: ModuleTable)
-signal update(prev: ModuleTable, row: ModuleTable)
-signal delete(row: ModuleTable)
+signal insert(row: _ModuleTable)
+signal update(prev: _ModuleTable, row: _ModuleTable)
+signal delete(row: _ModuleTable)
 
-func on_set(schema: ModuleTable):
+func on_set(schema: _ModuleTable):
 	
 	_derived_table_names.clear()
 
@@ -26,8 +26,8 @@ func on_set(schema: ModuleTable):
 		
 		if script_resource is Script:
 			var global_name: String = script_resource.get_global_name().replace("_gd", "")
-			if global_name == "ModuleTable": 
-				push_error("ModuleTable is the base class for tables, not a reciever table. Selection is not changed.")
+			if global_name == "_ModuleTable": 
+				push_error("_ModuleTable is the base class for tables, not a reciever table. Selection is not changed.")
 				return
 			table_to_receive = schema
 			name = "Receiver [%s]" % global_name
@@ -98,17 +98,17 @@ func _ready() -> void:
 			_on_insert(selected_table_name, row_data)
 
 			
-func _on_insert(_table_name: String, row: ModuleTable):
+func _on_insert(_table_name: String, row: _ModuleTable):
 	if _table_name != selected_table_name:
 		return;
 	insert.emit(row)
 
-func _on_update(_table_name: String, row: ModuleTable, previous: ModuleTable):
+func _on_update(_table_name: String, row: _ModuleTable, previous: _ModuleTable):
 	if _table_name != selected_table_name:
 		return
 	update.emit(row, previous)
 
-func _on_delete(_table_name: String, row: ModuleTable):
+func _on_delete(_table_name: String, row: _ModuleTable):
 	if _table_name != selected_table_name:
 		return
 	delete.emit(row)
