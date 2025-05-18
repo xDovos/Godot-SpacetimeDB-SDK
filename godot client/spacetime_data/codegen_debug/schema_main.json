@@ -13,9 +13,15 @@
 					"type": "U32"
 				}
 			],
+			"table_names": [
+				"lobby"
+			],
 			"table_name": "lobby",
 			"primary_key": 0,
-			"primary_key_name": "id"
+			"primary_key_name": "id",
+			"is_public": [
+				true
+			]
 		},
 		{
 			"name": "Vector2",
@@ -92,9 +98,17 @@
 					"type": "Damage"
 				}
 			],
-			"table_name": "user",
+			"table_names": [
+				"user",
+				"user_next"
+			],
+			"table_name": "user_next",
 			"primary_key": 0,
-			"primary_key_name": "identity"
+			"primary_key_name": "identity",
+			"is_public": [
+				true,
+				true
+			]
 		},
 		{
 			"name": "Damage",
@@ -164,9 +178,15 @@
 					"type": "__timestamp_micros_since_unix_epoch__"
 				}
 			],
+			"table_names": [
+				"user_data"
+			],
 			"table_name": "user_data",
 			"primary_key": 0,
-			"primary_key_name": "identity"
+			"primary_key_name": "identity",
+			"is_public": [
+				true
+			]
 		},
 		{
 			"name": "Color",
@@ -421,6 +441,52 @@
 				{
 					"name": {
 						"some": "user_data_identity_key"
+					},
+					"data": {
+						"Unique": {
+							"columns": [
+								0.0
+							]
+						}
+					}
+				}
+			],
+			"sequences": [],
+			"schedule": {
+				"none": []
+			},
+			"table_type": {
+				"User": []
+			},
+			"table_access": {
+				"Public": []
+			}
+		},
+		{
+			"name": "user_next",
+			"product_type_ref": 4.0,
+			"primary_key": [
+				0.0
+			],
+			"indexes": [
+				{
+					"name": {
+						"some": "user_next_identity_idx_btree"
+					},
+					"accessor_name": {
+						"some": "identity"
+					},
+					"algorithm": {
+						"BTree": [
+							0.0
+						]
+					}
+				}
+			],
+			"constraints": [
+				{
+					"name": {
+						"some": "user_next_identity_key"
 					},
 					"data": {
 						"Unique": {

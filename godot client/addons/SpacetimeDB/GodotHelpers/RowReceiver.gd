@@ -10,13 +10,20 @@ signal update(prev: ModuleTable, row: ModuleTable)
 signal delete(row: ModuleTable)
 
 func on_set(schema: ModuleTable):
-	if schema != null:
-		name = "Receiver [%s]" % schema.get_script().get_global_name()
-		name = name.replace("_gd", "")
-	else:
+	if schema == null:
 		name = "Receiver [EMPTY]"
+		table_to_receive = null
+		return
+	var global_name: String = schema.get_script().get_global_name().replace("_gd", "")
+	if global_name == "ModuleTable": 
+		push_error("ModuleTable is the base class for tables, not a reciever table. Selection is not changed.")
+		return
+	if not global_name.contains("Table"):
+		push_error("{0} is a base struct, not a reciever table. Selection is not changed.".format(
+			[global_name]))
+		return
+	name = "Receiver [%s]" % global_name
 	table_to_receive = schema;
-	pass;
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
