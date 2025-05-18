@@ -5,18 +5,23 @@ class_name MainUser extends ModuleTable
 @export var online: bool
 @export var lobby_id: int
 @export var damage: MainDamage
+@export var test_option_string: Option
+@export var test_option_message: Option
 
 func _init():
-	set_meta('table_name', 'user_next')
 	set_meta('primary_key', 'identity')
 	set_meta('bsatn_type_identity', &'identity')
 	set_meta('bsatn_type_lobby_id', &'u64')
 	set_meta('bsatn_type_damage', &'MainDamage')
+	set_meta('bsatn_type_test_option_string', &'vec_String') # < -- Handwritten
+	set_meta('bsatn_type_test_option_message', &'MainMessage') # < -- Handwritten
 
-static func create(_identity: PackedByteArray, _online: bool, _lobby_id: int, _damage: MainDamage) -> MainUser:
+static func create(_identity: PackedByteArray, _online: bool, _lobby_id: int, _damage: MainDamage, _test_option_string: Option, _test_option_message: Option) -> MainUser:
 	var result = MainUser.new()
 	result.identity = _identity
 	result.online = _online
 	result.lobby_id = _lobby_id
 	result.damage = _damage
+	result.test_option_string = _test_option_string
+	result.test_option_message = _test_option_message
 	return result

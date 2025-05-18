@@ -75,6 +75,11 @@
 					"name": "string_vec",
 					"is_array": true,
 					"type": "String"
+				},
+				{
+					"name": "test_option",
+					"is_option": true,
+					"type": "String"
 				}
 			]
 		},
@@ -96,6 +101,16 @@
 				{
 					"name": "damage",
 					"type": "Damage"
+				},
+				{
+					"name": "test_option_string",
+					"is_option": true,
+					"type": "Array"
+				},
+				{
+					"name": "test_option_message",
+					"is_option": true,
+					"type": "Ref"
 				}
 			],
 			"table_names": [
@@ -244,10 +259,6 @@
 			"params": [
 				{
 					"name": "message",
-					"type": "Message"
-				},
-				{
-					"name": "another_message",
 					"type": "Message"
 				}
 			]

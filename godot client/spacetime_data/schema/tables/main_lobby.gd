@@ -5,7 +5,6 @@ class_name MainLobby extends ModuleTable
 @export var player_count: int
 
 func _init():
-	set_meta('table_name', 'lobby')
 	set_meta('primary_key', 'id')
 	set_meta('bsatn_type_id', &'u64')
 	set_meta('bsatn_type_player_count', &'u32')

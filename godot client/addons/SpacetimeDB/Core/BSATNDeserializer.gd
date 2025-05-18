@@ -286,6 +286,8 @@ func _get_reader_callable_for_property(resource: Resource, prop: Dictionary) -> 
 	if resource is TransactionUpdateData and prop_name == "status":
 		reader_callable = Callable(self, "_read_update_status")
 	# Add other special cases here if needed (e.g., Option<T> fields if handled generically later)
+	if prop.class_name == &'Option':
+		reader_callable = Callable(self, "_read_option")
 
 	# --- Generic Type Handling (if not a special case) ---
 	elif prop_type == TYPE_ARRAY:
@@ -317,7 +319,8 @@ func _get_reader_callable_for_property(resource: Resource, prop: Dictionary) -> 
 				TYPE_QUATERNION: reader_callable = Callable(self, "read_quaternion")
 				TYPE_PACKED_BYTE_ARRAY: reader_callable = Callable(self, "read_vec_u8") # Default PBA is Vec<u8>
 				# TYPE_ARRAY is handled above
-				TYPE_OBJECT: reader_callable = Callable(self, "_read_nested_resource") # Handles nested Resources
+				TYPE_OBJECT: 
+					reader_callable = Callable(self, "_read_nested_resource") # Handles nested Resources
 				_:
 					# reader_callable remains invalid for unsupported types
 					pass
@@ -344,7 +347,7 @@ func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: D
 		# Check if the method requires the full context (spb, resource, prop)
 		# Typically needed for recursive or context-aware readers.
 		match method_name:
-			"_read_array", "_read_nested_resource", "_read_array_of_table_updates":
+			"_read_array", "_read_nested_resource", "_read_array_of_table_updates", "_read_option":
 				return reader_callable.call(spb, resource, prop) # Pass full context
 			_: 
 				# Standard primitive/complex readers usually only need the buffer.
@@ -361,6 +364,9 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 		_set_error("Cannot populate null or scriptless resource", -1 if not spb else spb.get_position())
 		return false
 	
+	#if resource is Option:
+	#	return _populate_option_from_bytes(spb, resource)
+		
 	# Check if resource is a Rust enum and handle special case
 	if resource is RustEnum:
 		return _populate_enum_from_bytes(spb, resource)
@@ -467,9 +473,111 @@ func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -
 		_populate_resource_from_bytes(resource.data, spb)
 		return true
 	return false
-
+	
 # --- Special Readers ---
+# Add this new function to the BSATNDeserializer class
 
+# Helper function to deserialize a value based on BSATN type string.
+# Assumes bsatn_type_str is already to_lower() if it's from metadata.
+func _read_value_from_bsatn_type(spb: StreamPeerBuffer, bsatn_type_str: String, context_prop_name_for_error: StringName) -> Variant:
+	var value = null
+	var start_pos_val_read = spb.get_position() # For error reporting
+
+	# 1. Try primitive reader (expects lowercase bsatn_type_str)
+	var primitive_reader := _get_primitive_reader_from_bsatn_type(bsatn_type_str)
+	if primitive_reader.is_valid():
+		value = primitive_reader.call(spb)
+		if has_error(): return null
+		return value
+
+	# 2. Handle Vec<T> (e.g., "vec_u8", "vec_mycustomresource")
+	# Assumes bsatn_type_str is already lowercase
+	if bsatn_type_str.begins_with("vec_"):
+		var element_bsatn_type_str = bsatn_type_str.substr(4) # This will also be lowercase
+		
+		var array_length := read_u32_le(spb)
+		if has_error(): return null
+		if array_length == 0: return []
+		if array_length > MAX_VEC_LEN:
+			_set_error("Array length %d (for BSATN type '%s') exceeds limit %d for context '%s'" % [array_length, bsatn_type_str, MAX_VEC_LEN, context_prop_name_for_error], spb.get_position() - 4) # -4 for u32 length
+			return null
+			
+		var temp_array := []
+		# temp_array.resize(array_length) # Not strictly necessary if appending
+		for i in range(array_length):
+			if has_error(): return null # Stop if previous element failed
+			var element_value = _read_value_from_bsatn_type(spb, element_bsatn_type_str, "%s[element %d]" % [context_prop_name_for_error, i])
+			if has_error(): return null # Stop if current element failed
+			temp_array.append(element_value)
+		return temp_array
+
+	# 3. Handle Custom Resource (non-array)
+	# _possible_row_schemas keys are table_name.to_lower().replace("_", "")
+	# bsatn_type_str from metadata should be .to_lower()'d before calling this.
+	var schema_key = bsatn_type_str.replace("_", "") # e.g., "maindamage" -> "maindamage", "my_type" -> "mytype"
+	if _possible_row_schemas.has(schema_key):
+		var script: Script = _possible_row_schemas.get(schema_key)
+		if script and script.can_instantiate():
+			var nested_instance = script.new()
+			if not _populate_resource_from_bytes(nested_instance, spb):
+				# Error should be set by _populate_resource_from_bytes
+				if not has_error(): _set_error("Failed to populate nested resource of type '%s' (schema key '%s') for context '%s'" % [bsatn_type_str, schema_key, context_prop_name_for_error], start_pos_val_read)
+				return null
+			return nested_instance
+		else:
+			_set_error("Cannot instantiate schema for BSATN type '%s' (schema key '%s', context: '%s'). Script valid: %s, Can instantiate: %s" % [bsatn_type_str, schema_key, context_prop_name_for_error, script != null, script.can_instantiate() if script else "N/A"], start_pos_val_read)
+			return null
+			
+	_set_error("Unsupported BSATN type '%s' for deserialization (context: '%s'). No primitive, vec, or custom schema found." % [bsatn_type_str, context_prop_name_for_error], start_pos_val_read)
+	return null
+
+func _read_option(spb: StreamPeerBuffer, parent_resource_containing_option: Resource, option_property_dict: Dictionary, explicit_inner_bsatn_type_str: String = "") -> Option:
+	var option_instance := Option.new()
+	var option_prop_name: StringName = option_property_dict.name # For error messages and metadata key
+
+	# Wire format: u8 tag (0 for Some, 1 for None)
+	# If Some (0): followed by T value
+	var tag_pos := spb.get_position()
+	var is_present_tag := read_u8(spb) 
+	if has_error(): return null # Error reading tag
+
+	if is_present_tag == 1: # It's None
+		option_instance.set_none()
+		if debug_mode: print("DEBUG: _read_option: Read None for Option property '%s'" % option_prop_name)
+		return option_instance
+	elif is_present_tag == 0: # It's Some
+		var inner_bsatn_type_str_to_use: String
+
+		if not explicit_inner_bsatn_type_str.is_empty():
+			inner_bsatn_type_str_to_use = explicit_inner_bsatn_type_str # Assumed to be already .to_lower() by caller (_read_array)
+		else:
+			var bsatn_meta_key_for_inner_type := "bsatn_type_" + option_prop_name
+			if not parent_resource_containing_option.has_meta(bsatn_meta_key_for_inner_type):
+				_set_error("Missing 'bsatn_type' metadata for Option property '%s' in resource '%s'. Cannot determine inner type T." % [option_prop_name, parent_resource_containing_option.resource_path if parent_resource_containing_option else "UnknownResource"], tag_pos)
+				return null
+			inner_bsatn_type_str_to_use = str(parent_resource_containing_option.get_meta(bsatn_meta_key_for_inner_type)).to_lower()
+			if inner_bsatn_type_str_to_use.is_empty():
+				_set_error("'bsatn_type' metadata for Option property '%s' is empty. Cannot determine inner type T." % option_prop_name, tag_pos)
+				return null
+
+		if debug_mode: print("DEBUG: _read_option: Read Some for Option property '%s', deserializing inner type: '%s'" % [option_prop_name, inner_bsatn_type_str_to_use])
+
+		var inner_value = _read_value_from_bsatn_type(spb, inner_bsatn_type_str_to_use, option_prop_name)
+		
+		if has_error():
+			# Error should have been set by _read_value_from_bsatn_type or its callees.
+			# Add context if the error message doesn't already mention the property.
+			if not _last_error.contains(str(option_prop_name)):
+				var existing_error = get_last_error() # Consume the error
+				_set_error("Failed reading 'Some' value for Option property '%s' (inner BSATN type '%s'). Cause: %s" % [option_prop_name, inner_bsatn_type_str_to_use, existing_error], tag_pos + 1) # Position after tag
+			return null
+
+		option_instance.set_some(inner_value)
+		return option_instance
+	else:
+		_set_error("Invalid tag %d for Option property '%s' (expected 0 for Some, 1 for None)." % [is_present_tag, option_prop_name], tag_pos)
+		return null
+	
 # Reads an array property.
 func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) -> Array:
 	var prop_name: StringName = prop.name
@@ -504,36 +612,63 @@ func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) ->
 
 	# 4. Determine the reader function for the ELEMENTS
 	var element_reader_callable : Callable
-	if resource.has_meta(meta_key): # Check array's metadata first (defines element BSATN type)
-		var bsatn_element_type_str = str(resource.get_meta(meta_key)).to_lower()
-		element_reader_callable = _get_primitive_reader_from_bsatn_type(bsatn_element_type_str)
-		if not element_reader_callable.is_valid() and debug_mode:
-			push_warning("Array '%s' has 'bsatn_type' metadata ('%s'), but it doesn't map to a primitive reader. Falling back to element type hint." % [prop_name, bsatn_element_type_str])
-	if not element_reader_callable.is_valid(): # Fallback to element's Variant.Type
-		element_reader_callable = _get_reader_callable_for_property(resource, element_prop_sim) # Use element prototype here
+	var array_bsatn_meta_key := "bsatn_type_" + prop_name # Metadata for the array property itself
+	var inner_type_for_option_elements: String = "" # To store T's BSATN type for Array[Option<T>]
+	if element_class_name == &"Option":
+		element_reader_callable = Callable(self, "_read_option")
+		if resource.has_meta(array_bsatn_meta_key):
+			inner_type_for_option_elements = str(resource.get_meta(array_bsatn_meta_key)).to_lower()
+			if inner_type_for_option_elements.is_empty():
+				_set_error("Array '%s' of Options has empty 'bsatn_type' metadata. Inner type T for Option<T> cannot be determined." % prop_name, start_pos)
+				return []
+		else:
+			# This metadata is essential for Array[Option<T>]
+			_set_error("Array '%s' of Options is missing 'bsatn_type' metadata. This metadata should specify the BSATN type of T in Option<T> (e.g., 'u8' for Array[Option<u8>])." % prop_name, start_pos)
+			return []
+	else: # Not an array of Options, proceed with existing logic
+		if resource.has_meta(array_bsatn_meta_key): # Check array's metadata first (defines element BSATN type)
+			var bsatn_element_type_str = str(resource.get_meta(array_bsatn_meta_key)).to_lower()
+			element_reader_callable = _get_primitive_reader_from_bsatn_type(bsatn_element_type_str)
+			if not element_reader_callable.is_valid() and debug_mode:
+				push_warning("Array '%s' has 'bsatn_type' metadata ('%s'), but it doesn't map to a primitive reader. Falling back to element type hint." % [prop_name, bsatn_element_type_str])
+		
+		if not element_reader_callable.is_valid(): # Fallback to element's Variant.Type if no valid primitive reader from metadata
+			element_reader_callable = _get_reader_callable_for_property(resource, element_prop_sim) # Use element prototype here
+	
 	if not element_reader_callable.is_valid():
 		_set_error("Cannot determine reader for elements of array '%s' (element type code %d, class '%s')." % [prop_name, element_type_code, element_class_name], start_pos)
 		return []
 
 	# 5. Read elements recursively
-	var result_array := []; result_array.resize(length)
+	var result_array := []; result_array.resize(length) # Pre-allocate for typed arrays if needed, or just append
 	var element_reader_method_name = element_reader_callable.get_method() if element_reader_callable.is_valid() else ""
 
 	for i in range(length):
-		if has_error(): return []
+		if has_error(): return [] # Stop on error
 		var element_start_pos = spb.get_position()
 		var element_value = null
+		
 		if element_reader_callable.get_object() == self:
-			if element_reader_method_name == "_read_array" or element_reader_method_name == "_read_nested_resource" or element_reader_method_name == "_read_array_of_table_updates":
+			# Special handling for _read_option when it's an array element
+			if element_reader_method_name == "_read_option":
+				# Pass the determined inner_type_for_option_elements as the 4th argument
+				element_value = element_reader_callable.call(spb, resource, element_prop_sim, inner_type_for_option_elements)
+			# Existing logic for other recursive/contextual readers
+			elif element_reader_method_name == "_read_array" or \
+				 element_reader_method_name == "_read_nested_resource" or \
+				 element_reader_method_name == "_read_array_of_table_updates":
 				element_value = element_reader_callable.call(spb, resource, element_prop_sim) # Pass element prototype for recursion
-			else:
-				element_value = element_reader_callable.call(spb) # Primitive reader
-		else: _set_error("Internal error: Invalid element reader callable for array '%s'." % prop_name, element_start_pos); return []
+			else: # Primitive reader or other simple reader
+				element_value = element_reader_callable.call(spb)
+		else: 
+			_set_error("Internal error: Invalid element reader callable for array '%s'." % prop_name, element_start_pos); return []
+		
 		if has_error():
-			if not _last_error.contains("element %d" % i) and not _last_error.contains(prop_name):
-				var existing_error = get_last_error(); _set_error("Failed reading element %d for array '%s'. Cause: %s" % [i, prop_name, existing_error], element_start_pos)
+			if not _last_error.contains("element %d" % i) and not _last_error.contains(str(prop_name)): # Avoid redundant context
+				var existing_error = get_last_error(); 
+				_set_error("Failed reading element %d for array '%s'. Cause: %s" % [i, prop_name, existing_error], element_start_pos)
 			return []
-		result_array[i] = element_value
+		result_array[i] = element_value # Or result_array.append(element_value) if not resizing
 	return result_array
 
 # Reads a nested Resource property.

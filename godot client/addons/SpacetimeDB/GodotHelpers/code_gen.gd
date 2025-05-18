@@ -1,6 +1,6 @@
 @tool
 class_name Codegen extends Resource
-var OPTION_HANDLING: = RustOptionHandling.OPTION_T_AS_T
+var OPTION_HANDLING: = RustOptionHandling.ARRAY_HACK
 var HIDE_PRIVATE_TABLES: = true
 var HIDE_SCHEDULED_REDUCERS: = true
 const PLUGIN_DATA_FOLDER = "spacetime_data"
@@ -56,7 +56,8 @@ var META_TYPE_MAP := {
 enum RustOptionHandling {
 	IGNORE = 1, #This will not generate any fields for Option<T> types.
 	USE_GODOT_OPTION = 2, #https://github.com/WhoStoleMyCoffee/godot-optional/tree/main
-	OPTION_T_AS_T = 3 #This will use Option<T> as T in GDScript. This may have issues with nullability in Godot, so use with caution.
+	OPTION_T_AS_T = 3, #This will use Option<T> as T in GDScript. This may have issues with nullability in Godot, so use with caution.
+	ARRAY_HACK = 4
 }
 
 
@@ -211,12 +212,23 @@ func generate_struct_gdscript(type, module_name) -> String:
 				RustOptionHandling.IGNORE: continue
 				RustOptionHandling.USE_GODOT_OPTION:
 					field_type = "Option"
+				RustOptionHandling.ARRAY_HACK:
+					field_type = "Option"
 		if field.has("is_array"):
 			field_type = "Array[%s]" % field_type
 		var meta: String = META_TYPE_MAP.get(field.get("type", ""), "")
-		if not meta.is_empty():
+		if not meta.is_empty() and field.has("is_option") == false:
 			meta_data.append("set_meta('bsatn_type_%s', &'%s')" 
 				% [field_name, meta])
+		if field.has("is_option"):
+			if meta.is_empty():
+				Spacetime.print_log("Dont meta for option : " + field.get("type"))
+				meta_data.append("set_meta('bsatn_type_%s', &'%s')" 
+					% [field_name, field.get("type")])
+			else:
+				Spacetime.print_log("Find meta for option : " + meta)
+				meta_data.append("set_meta('bsatn_type_%s', &'%s')" 
+					% [field_name, meta])
 		content += "@export var %s: %s\n" % [field_name, field_type]
 		class_fields.append([field_name, field_type])
 	content += "\nfunc _init():\n"

@@ -20,6 +20,8 @@ pub struct User {
     online: bool,
     lobby_id: u64,
     damage: Damage,
+    test_option_string: Option<Vec<String>>,
+    test_option_message: Option<Message>,
 }
 #[derive(SpacetimeType, Debug)]
 pub struct Damage {
@@ -34,6 +36,7 @@ pub struct Message {
     string_value: String,
     int_vec: Vec<u8>,
     string_vec: Vec<String>,
+    test_option: Option<String>,
 }
 
 #[table(name = user_data, public)]
@@ -64,10 +67,23 @@ pub fn client_connected(ctx: &ReducerContext) {
         }
     } else {
         let new_name = get_random_name(&ctx);
-        let mut int_vec = Vec::new();
-        int_vec.push(10);
-        int_vec.push(20);
-        //int_vec.push(3);
+        let mut new_int_vec = Vec::new();
+        new_int_vec.push(10);
+        new_int_vec.push(20);
+
+        let mut string_vec = Vec::new();
+
+        string_vec.push(String::from("QWE"));
+        string_vec.push(String::from("ASD"));
+        string_vec.push(String::from("ZXC"));
+
+        let test_message = Message {
+            int_value: 26,
+            string_value: "Jupiter".to_owned(),
+            int_vec: new_int_vec.clone(),
+            string_vec: string_vec.clone(),
+            test_option: Some("Test _opt".to_owned()),
+        };
         ctx.db.user().insert(User {
             identity: ctx.sender,
             online: true,
@@ -75,8 +91,10 @@ pub fn client_connected(ctx: &ReducerContext) {
             damage: Damage {
                 amount: 0,
                 source: ctx.sender,
-                int_vec,
+                int_vec: new_int_vec,
             },
+            test_option_string: Some(string_vec),
+            test_option_message: Some(test_message),
         });
 
         let mut test_vec = Vec::new();
@@ -164,12 +182,31 @@ pub fn get_random_name(ctx: &ReducerContext) -> String {
 pub fn test_struct(
     ctx: &ReducerContext,
     message: Message,
-    another_message: Message,
+    //another_message: Message,
 ) -> Result<(), String> {
-    let formatted = format!("{:?}", message);
-    let formatted_second = format!("{:?}", another_message);
-    log::info!("{}, another : {}", formatted, formatted_second);
-    Err(format!("{}, another : {}", formatted, formatted_second))
+    let mut int_vec = Vec::new();
+    int_vec.push(1);
+    int_vec.push(2);
+    int_vec.push(3);
+
+    let mut string_vec = Vec::new();
+    string_vec.push(String::from("One"));
+    string_vec.push(String::from("Two"));
+    string_vec.push(String::from("Three"));
+
+    let formatted = format!(
+        "{:?}",
+        Message {
+            int_value: 123,
+            string_value: String::from("Rust server message"),
+            int_vec,
+            string_vec,
+            test_option: Some(String::from("value"))
+        }
+    );
+    //let formatted_second = format!("{:?}", another_message);
+    //log::info!("{}, another : {}", formatted, formatted_second);
+    Err(format!("{}", formatted))
 }
 
 #[reducer]
