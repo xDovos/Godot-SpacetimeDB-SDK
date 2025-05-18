@@ -21,8 +21,6 @@ func on_self_update(user:MainUser):
 		print("My lobby : ", lobby_id)
 		subscibe_whole_lobby(lobby_id, user.identity)
 		users[user.identity] = user
-		print(user.test_option_string.unwrap())
-		print(user.test_option_message.unwrap())
 	pass
 
 func subscibe_whole_lobby(lobby_to_sub:int, user_identity:PackedByteArray):

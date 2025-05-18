@@ -146,6 +146,67 @@ func write_rust_enum(rust_enum: RustEnum) -> void:
 			data = _generate_default_type(sub_class)
 		_write_argument_value(data, sub_class)
 
+func _write_option(option_value: Option, parent_resource: Resource, option_property_name: StringName) -> bool:
+	if not option_value is Option:
+		_set_error("Value provided to _write_option is not an Option instance (type: %s) for property '%s'." % [typeof(option_value), option_property_name])
+		return false
+
+	if option_value.is_none():
+		write_u8(1) # Tag for None
+		if has_error():
+			_set_error("Failed to write None tag for Option property '%s'." % option_property_name)
+			return false
+		return true
+	else: # is_some()
+		write_u8(0) # Tag for Some
+		if has_error():
+			_set_error("Failed to write Some tag for Option property '%s'." % option_property_name)
+			return false
+
+		var inner_value = option_value.unwrap()
+		var inner_value_type: Variant.Type = typeof(inner_value)
+		
+		var bsatn_meta_key_for_inner_type := "bsatn_type_" + option_property_name
+		var specific_writer_for_inner_value: StringName = &""
+		var element_type_for_inner_array: Variant.Type = TYPE_MAX # if T is Array
+		var element_class_for_inner_array: StringName = &""    # if T is Array[Object]
+
+		if parent_resource.has_meta(bsatn_meta_key_for_inner_type):
+			var bsatn_type_str = str(parent_resource.get_meta(bsatn_meta_key_for_inner_type)).to_lower()
+			
+			# if T - is Vec<U> (bsatn_type_test_none = &'vec_u8')
+			if bsatn_type_str.begins_with("vec_"):
+				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_type_str)
+				
+				if inner_value_type == TYPE_ARRAY and not specific_writer_for_inner_value == &"write_vec_u8": # т.е. это Vec<Resource> или Vec<Primitive != u8>
+					# Get type from Array
+					# example - "vec_mycustomtype" или "vec_u32"
+					var inner_element_bsatn_type = bsatn_type_str.substr(4) # "mycustomtype" or "u32"
+					
+					specific_writer_for_inner_value = _get_specific_writer_method_name(inner_element_bsatn_type)
+					
+					# Not sure about that
+					if not inner_value.is_empty():
+						element_type_for_inner_array = typeof(inner_value[0])
+						if element_type_for_inner_array == TYPE_OBJECT and inner_value[0] is Resource:
+							element_class_for_inner_array = inner_value[0].get_class() # или из скрипта, если есть
+					elif inner_element_bsatn_type == "u8": element_type_for_inner_array = TYPE_INT # Пример
+					elif inner_element_bsatn_type == "string": element_type_for_inner_array = TYPE_STRING # Пример
+					# ...  ...
+					else:
+						element_type_for_inner_array = TYPE_OBJECT
+			else: 
+				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_type_str)
+		else:
+			_set_error("Missing 'bsatn_type' metadata for Option property '%s' in resource '%s'. Cannot determine inner type T for serialization." % [option_property_name, parent_resource.get_class()])
+			return false
+			
+		if not _write_value(inner_value, inner_value_type, specific_writer_for_inner_value, element_type_for_inner_array, element_class_for_inner_array):
+			if not has_error(): _set_error("Failed to write 'Some' value for Option property '%s'." % option_property_name)
+			return false
+
+		return true
+		
 # --- Core Serialization Logic ---
 
 # Helper to get the specific BSATN writer METHOD NAME based on metadata value.
@@ -217,6 +278,9 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 						if not has_error(): _set_error("Failed to write array element.") # Ensure error is set
 						return false
 			TYPE_OBJECT:
+				if value is Option:
+					_set_error("Internal error: _write_value called directly for an Option instance. This should be handled by _serialize_resource_fields.")
+					return false
 				if value is RustEnum:
 					write_rust_enum(value)
 				elif value is Resource:
@@ -251,7 +315,11 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 		var prop_name: StringName = prop.name
 		var prop_type: Variant.Type = prop.type
 		var value = resource.get(prop_name) # Get the actual value from the resource instance
-
+		if value is Option:
+			if not _write_option(value, resource, prop_name):
+				if not has_error(): _set_error("Failed to write Option property '%s'" % prop_name)
+				return false
+			continue
 		var specific_writer_method: StringName = &""
 		var element_type: Variant.Type = TYPE_MAX
 		var element_class: StringName = &""

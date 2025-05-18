@@ -37,6 +37,7 @@ pub struct Message {
     int_vec: Vec<u8>,
     string_vec: Vec<String>,
     test_option: Option<String>,
+    test_inner: Option<Damage>,
 }
 
 #[table(name = user_data, public)]
@@ -76,13 +77,18 @@ pub fn client_connected(ctx: &ReducerContext) {
         string_vec.push(String::from("QWE"));
         string_vec.push(String::from("ASD"));
         string_vec.push(String::from("ZXC"));
-
+        let test_damage: Damage = Damage {
+            amount: 16,
+            source: ctx.sender,
+            int_vec: new_int_vec.clone(),
+        };
         let test_message = Message {
             int_value: 26,
             string_value: "Jupiter".to_owned(),
             int_vec: new_int_vec.clone(),
             string_vec: string_vec.clone(),
             test_option: Some("Test _opt".to_owned()),
+            test_inner: Some(test_damage),
         };
         ctx.db.user().insert(User {
             identity: ctx.sender,
@@ -194,16 +200,7 @@ pub fn test_struct(
     string_vec.push(String::from("Two"));
     string_vec.push(String::from("Three"));
 
-    let formatted = format!(
-        "{:?}",
-        Message {
-            int_value: 123,
-            string_value: String::from("Rust server message"),
-            int_vec,
-            string_vec,
-            test_option: Some(String::from("value"))
-        }
-    );
+    let formatted = format!("{:?}", message);
     //let formatted_second = format!("{:?}", another_message);
     //log::info!("{}, another : {}", formatted, formatted_second);
     Err(format!("{}", formatted))

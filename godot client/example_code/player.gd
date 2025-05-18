@@ -15,18 +15,19 @@ func _ready() -> void:
 	set_process_input(get_meta("is_local"))
 
 func test_struct():
+	var test_damage = MainDamage.create(16, SpacetimeDB.get_local_identity().identity, [1,2,3]);
 	var test_one := MainMessage.new()
 	test_one.int_value = 55
 	test_one.string_value = "Hello from Godot"
 	test_one.int_vec = [1,2,3]
 	test_one.string_vec = ["one", "two", "three"]
-		
-	var test := MainMessage.new()
-	test.int_value = 26
-	test.string_value = "Hello from Godot second"
-	test.int_vec = [3,2,1]
-	test.string_vec = ["Hello", "Elden", "Ring"]
-		
+	var option = Option.new()
+	option.set_none()
+	test_one.test_option = option
+	var option_inner = Option.new()
+	option_inner.set_some(test_damage)
+	test_one.test_inner = option_inner
+	
 	var res = await SpacetimeModule.Main.Reducers.test_struct(test_one, func(_t): 
 		print("Result:", _t)
 		pass)

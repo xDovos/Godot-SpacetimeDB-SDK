@@ -6,11 +6,13 @@ class_name MainMessage extends Resource
 @export var int_vec: Array[int]
 @export var string_vec: Array[String]
 @export var test_option: Option
+@export var test_inner: Option
 
 func _init():
 	set_meta('bsatn_type_int_value', &'u8')
 	set_meta('bsatn_type_int_vec', &'u8')
 	set_meta('bsatn_type_test_option', &'String')
+	set_meta('bsatn_type_test_inner', &'MainDamage') # <-- Handwritted
 
 static func create(_int_value: int, _string_value: String, _int_vec: Array[int], _string_vec: Array[String], _test_option: Option) -> MainMessage:
 	var result = MainMessage.new()
