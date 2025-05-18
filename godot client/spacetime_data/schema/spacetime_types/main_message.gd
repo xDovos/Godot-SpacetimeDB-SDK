@@ -14,11 +14,12 @@ func _init():
 	set_meta('bsatn_type_test_option', &'String')
 	set_meta('bsatn_type_test_inner', &'MainDamage') # <-- Handwritted
 
-static func create(_int_value: int, _string_value: String, _int_vec: Array[int], _string_vec: Array[String], _test_option: Option) -> MainMessage:
+static func create(_int_value: int, _string_value: String, _int_vec: Array[int], _string_vec: Array[String], _test_option: Option, _test_inner: Option) -> MainMessage:
 	var result = MainMessage.new()
 	result.int_value = _int_value
 	result.string_value = _string_value
 	result.int_vec = _int_vec
 	result.string_vec = _string_vec
 	result.test_option = _test_option
+	result.test_inner = _test_inner
 	return result

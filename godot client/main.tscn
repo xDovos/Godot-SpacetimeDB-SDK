@@ -4,9 +4,9 @@
 [ext_resource type="PackedScene" uid="uid://dvenminxkaei3" path="res://scenes/player.tscn" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://cv6bu0sabs8yh" path="res://example_code/spawner.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="5_7mycd"]
-[ext_resource type="Script" uid="uid://2ee8j2oirist" path="res://spacetime_data/schema/tables/main_user_data.gd" id="5_272bh"]
+[ext_resource type="Script" uid="uid://dn6bfmcowfv70" path="res://spacetime_data/schema/tables/main_user_data.gd" id="5_272bh"]
 [ext_resource type="Script" uid="uid://cbeq6brew0wkm" path="res://example_code/LobbyHolder.gd" id="6_7mycd"]
-[ext_resource type="Script" uid="uid://ba2x5khdcd7tw" path="res://spacetime_data/schema/tables/main_user.gd" id="7_272bh"]
+[ext_resource type="Script" uid="uid://d2eqxvmj0aj87" path="res://spacetime_data/schema/tables/main_user.gd" id="7_272bh"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_0xm2m"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -21,7 +21,7 @@ sky = SubResource("Sky_h2yge")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="Resource" id="Resource_272bh"]
+[sub_resource type="Resource" id="Resource_5vw27"]
 script = ExtResource("5_272bh")
 identity = PackedByteArray()
 online = false
@@ -34,14 +34,14 @@ last_position = Vector3(0, 0, 0)
 direction = Vector2(0, 0)
 player_speed = 0.0
 last_update = 0
-metadata/_custom_type_script = "uid://2ee8j2oirist"
+metadata/_custom_type_script = "uid://dn6bfmcowfv70"
 
-[sub_resource type="Resource" id="Resource_5vw27"]
+[sub_resource type="Resource" id="Resource_272bh"]
 script = ExtResource("7_272bh")
 identity = PackedByteArray()
 online = false
 lobby_id = 0
-metadata/_custom_type_script = "uid://ba2x5khdcd7tw"
+metadata/_custom_type_script = "uid://d2eqxvmj0aj87"
 
 [node name="Node3D" type="Node3D"]
 
@@ -70,8 +70,8 @@ player_scene = ExtResource("2_0xm2m")
 
 [node name="Receiver [MainUserData]" type="Node" parent="PlayerSpawner"]
 script = ExtResource("5_7mycd")
-table_to_receive = SubResource("Resource_272bh")
-selected_table_name_from_list = "user_data"
+table_to_receive = SubResource("Resource_5vw27")
+selected_table_name = "user_data"
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 
 [node name="Lobby" type="Node" parent="." node_paths=PackedStringArray("receiver")]
@@ -80,6 +80,6 @@ receiver = NodePath("Receiver [MainUser]")
 
 [node name="Receiver [MainUser]" type="Node" parent="Lobby"]
 script = ExtResource("5_7mycd")
-table_to_receive = SubResource("Resource_5vw27")
-selected_table_name_from_list = "users_banned"
+table_to_receive = SubResource("Resource_272bh")
+selected_table_name = "user"
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"

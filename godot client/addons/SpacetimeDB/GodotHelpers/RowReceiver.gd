@@ -4,7 +4,7 @@ extends Node
 class_name RowReceiver
 
 @export var table_to_receive: ModuleTable : set = on_set;
-var selected_table_name_from_list: String : set = set_selected_table_name
+var selected_table_name: String : set = set_selected_table_name
 
 var _derived_table_names: Array[String] = []
 
@@ -18,7 +18,7 @@ func on_set(schema: ModuleTable):
 
 	if schema == null:
 		name = "Receiver [EMPTY]"
-		if selected_table_name_from_list != "":
+		if selected_table_name != "":
 			set_selected_table_name("")
 	else:
 		var script_resource: Script = schema.get_script()
@@ -28,21 +28,21 @@ func on_set(schema: ModuleTable):
 			name = "Receiver [%s]" % global_name
 
 			var constant_map = script_resource.get_script_constant_map()
-			if constant_map.has("table_name"):
-				var names_value = constant_map["table_name"]
+			if constant_map.has("table_names"):
+				var names_value = constant_map["table_names"]
 				if names_value is Array:
 					for item in names_value:
 						if item is String:
-							_derived_table_names.push_front(item)
+							_derived_table_names.push_back(item)
 		else:
 			name = "Receiver [Unknown Schema Type]"
 		
-	var current_selection_still_valid = _derived_table_names.has(selected_table_name_from_list)
+	var current_selection_still_valid = _derived_table_names.has(selected_table_name)
 	if not current_selection_still_valid:
 		if not _derived_table_names.is_empty():
 			set_selected_table_name(_derived_table_names[0])
 		else:
-			if selected_table_name_from_list != "":
+			if selected_table_name != "":
 				set_selected_table_name("")
 	
 	if Engine.is_editor_hint():
@@ -50,9 +50,9 @@ func on_set(schema: ModuleTable):
 
 
 func set_selected_table_name(value: String):
-	if selected_table_name_from_list == value:
+	if selected_table_name == value:
 		return
-	selected_table_name_from_list = value
+	selected_table_name = value
 
 
 func _get_property_list() -> Array:
@@ -60,7 +60,7 @@ func _get_property_list() -> Array:
 	if not _derived_table_names.is_empty():
 		var hint_string_for_enum = ",".join(_derived_table_names)
 		properties.append({
-			"name": "selected_table_name_from_list",
+			"name": "selected_table_name",
 			"type": TYPE_STRING,
 			"hint": PROPERTY_HINT_ENUM,
 			"hint_string": hint_string_for_enum
@@ -88,22 +88,22 @@ func _ready() -> void:
 	if db == null:
 		await SpacetimeDB.database_initialized
 	else:
-		var data = db.get_all_rows(selected_table_name_from_list)
+		var data = db.get_all_rows(selected_table_name)
 		for row_data in data:
-			_on_insert(selected_table_name_from_list, row_data)
+			_on_insert(selected_table_name, row_data)
 
 			
 func _on_insert(_table_name: String, row: ModuleTable):
-	if _table_name != selected_table_name_from_list:
+	if _table_name != selected_table_name:
 		return;
 	insert.emit(row)
 
 func _on_update(_table_name: String, row: ModuleTable, previous: ModuleTable):
-	if _table_name != selected_table_name_from_list:
+	if _table_name != selected_table_name:
 		return
 	update.emit(row, previous)
 
 func _on_delete(_table_name: String, row: ModuleTable):
-	if _table_name != selected_table_name_from_list:
+	if _table_name != selected_table_name:
 		return
 	delete.emit(row)

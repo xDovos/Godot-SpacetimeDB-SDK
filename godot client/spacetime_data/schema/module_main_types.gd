@@ -1,5 +1,5 @@
 const Lobby = preload('res://spacetime_data/schema/tables/main_lobby.gd')
 const Message = preload('res://spacetime_data/schema/spacetime_types/main_message.gd')
-const User = preload('res://spacetime_data/schema/tables/main_user.gd')
 const Damage = preload('res://spacetime_data/schema/spacetime_types/main_damage.gd')
+const User = preload('res://spacetime_data/schema/tables/main_user.gd')
 const UserData = preload('res://spacetime_data/schema/tables/main_user_data.gd')
