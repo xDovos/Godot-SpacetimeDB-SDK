@@ -3,4 +3,4 @@ class_name MainUserDataTable extends MainUserData
 
 func _init():
 	super._init()
-	set_meta('table_name', 'user_data')
+	#set_meta('table_name', ['user_data'])

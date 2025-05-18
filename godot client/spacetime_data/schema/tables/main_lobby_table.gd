@@ -3,4 +3,4 @@ class_name MainLobbyTable extends MainLobby
 
 func _init():
 	super._init()
-	set_meta('table_name', 'lobby')
+	set_meta('table_name', ['lobby'])

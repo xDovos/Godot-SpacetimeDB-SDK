@@ -3,4 +3,4 @@ class_name MainUserNextTable extends MainUser
 
 func _init():
 	super._init()
-	set_meta('table_name', 'user_next')
+	set_meta('table_name', ['user_next'])
