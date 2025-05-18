@@ -100,15 +100,11 @@ func _load_row_schemas(path: String) -> void:
 
 
 func _get_schema_table_name(instance: Resource, fallback_base_filename: Array[String]) -> Array:
-	# Prioritize metadata, then method, then filename
+	# Prioritize const, then filename
 	var table_names = instance.get_script().get_script_constant_map()
 	
 	if table_names.has('table_names'):
 		return table_names['table_names']
-	if instance.has_meta("table_name"):
-		return instance.get_meta("table_name")
-	elif instance.has_method("get_table_name"):
-		return instance.call("get_table_name")
 	else:
 		return fallback_base_filename
 
