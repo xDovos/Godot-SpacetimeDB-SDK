@@ -13,6 +13,7 @@ use spacetimedb::{
 const PLAYER_SPEED: f32 = 10.0;
 
 #[table(name = user, public)]
+#[table(name = user_next, public)]
 pub struct User {
     #[primary_key]
     identity: Identity,

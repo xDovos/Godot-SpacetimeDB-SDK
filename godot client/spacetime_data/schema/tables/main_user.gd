@@ -7,7 +7,7 @@ class_name MainUser extends ModuleTable
 @export var damage: MainDamage
 
 func _init():
-	set_meta('table_name', 'user')
+	set_meta('table_name', 'user_next')
 	set_meta('primary_key', 'identity')
 	set_meta('bsatn_type_identity', &'identity')
 	set_meta('bsatn_type_lobby_id', &'u64')
