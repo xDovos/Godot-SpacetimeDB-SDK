@@ -13,11 +13,12 @@ signal update(prev: ModuleTable, row: ModuleTable)
 signal delete(row: ModuleTable)
 
 func on_set(schema: ModuleTable):
-	table_to_receive = schema
+	
 	_derived_table_names.clear()
 
 	if schema == null:
 		name = "Receiver [EMPTY]"
+		table_to_receive = schema
 		if selected_table_name != "":
 			set_selected_table_name("")
 	else:
@@ -25,6 +26,10 @@ func on_set(schema: ModuleTable):
 		
 		if script_resource is Script:
 			var global_name: String = script_resource.get_global_name().replace("_gd", "")
+			if global_name == "ModuleTable": 
+				push_error("ModuleTable is the base class for tables, not a reciever table. Selection is not changed.")
+				return
+			table_to_receive = schema
 			name = "Receiver [%s]" % global_name
 
 			var constant_map = script_resource.get_script_constant_map()
