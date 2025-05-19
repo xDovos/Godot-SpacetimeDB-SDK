@@ -3,27 +3,75 @@
 extends Node
 class_name RowReceiver
 
-@export var table_to_receive: ModuleTable : set=on_set;
+@export var table_to_receive: _ModuleTable : set = on_set;
+var selected_table_name: String : set = set_selected_table_name
 
-signal insert(row: ModuleTable)
-signal update(prev: ModuleTable, row: ModuleTable)
-signal delete(row: ModuleTable)
+var _derived_table_names: Array[String] = []
 
-func on_set(schema: ModuleTable):
+signal insert(row: _ModuleTable)
+signal update(prev: _ModuleTable, row: _ModuleTable)
+signal delete(row: _ModuleTable)
+
+func on_set(schema: _ModuleTable):
+	
+	_derived_table_names.clear()
+
 	if schema == null:
 		name = "Receiver [EMPTY]"
-		table_to_receive = null
+		table_to_receive = schema
+		if selected_table_name != "":
+			set_selected_table_name("")
+	else:
+		var script_resource: Script = schema.get_script()
+		
+		if script_resource is Script:
+			var global_name: String = script_resource.get_global_name().replace("_gd", "")
+			if global_name == "_ModuleTable": 
+				push_error("_ModuleTable is the base class for tables, not a reciever table. Selection is not changed.")
+				return
+			table_to_receive = schema
+			name = "Receiver [%s]" % global_name
+
+			var constant_map = script_resource.get_script_constant_map()
+			if constant_map.has("table_names"):
+				var names_value = constant_map["table_names"]
+				if names_value is Array:
+					for item in names_value:
+						if item is String:
+							_derived_table_names.push_back(item)
+		else:
+			name = "Receiver [Unknown Schema Type]"
+		
+	var current_selection_still_valid = _derived_table_names.has(selected_table_name)
+	if not current_selection_still_valid:
+		if not _derived_table_names.is_empty():
+			set_selected_table_name(_derived_table_names[0])
+		else:
+			if selected_table_name != "":
+				set_selected_table_name("")
+	
+	if Engine.is_editor_hint():
+		property_list_changed.emit()
+
+
+func set_selected_table_name(value: String):
+	if selected_table_name == value:
 		return
-	var global_name: String = schema.get_script().get_global_name().replace("_gd", "")
-	if global_name == "ModuleTable": 
-		push_error("ModuleTable is the base class for tables, not a reciever table. Selection is not changed.")
-		return
-	if not global_name.contains("Table"):
-		push_error("{0} is a base struct, not a reciever table. Selection is not changed.".format(
-			[global_name]))
-		return
-	name = "Receiver [%s]" % global_name
-	table_to_receive = schema;
+	selected_table_name = value
+
+
+func _get_property_list() -> Array:
+	var properties: Array = []
+	if not _derived_table_names.is_empty():
+		var hint_string_for_enum = ",".join(_derived_table_names)
+		properties.append({
+			"name": "selected_table_name",
+			"type": TYPE_STRING,
+			"hint": PROPERTY_HINT_ENUM,
+			"hint_string": hint_string_for_enum
+		})
+	return properties
+
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -45,22 +93,22 @@ func _ready() -> void:
 	if db == null:
 		await SpacetimeDB.database_initialized
 	else:
-		var table_name_str = table_to_receive.get_meta("table_name")
-		var data = db.get_all_rows(table_name_str)
+		var data = db.get_all_rows(selected_table_name)
 		for row_data in data:
-			_on_insert(table_name_str, row_data)
+			_on_insert(selected_table_name, row_data)
+
 			
-func _on_insert(_table_name: String, row: ModuleTable):
-	if row.get_meta("table_name") != table_to_receive.get_meta("table_name"):
-		return
+func _on_insert(_table_name: String, row: _ModuleTable):
+	if _table_name != selected_table_name:
+		return;
 	insert.emit(row)
 
-func _on_update(_table_name: String, row: ModuleTable, previous: ModuleTable):
-	if row.get_meta("table_name") != table_to_receive.get_meta("table_name"):
+func _on_update(_table_name: String, row: _ModuleTable, previous: _ModuleTable):
+	if _table_name != selected_table_name:
 		return
 	update.emit(row, previous)
 
-func _on_delete(_table_name: String, row: ModuleTable):
-	if row.get_meta("table_name") != table_to_receive.get_meta("table_name"):
+func _on_delete(_table_name: String, row: _ModuleTable):
+	if _table_name != selected_table_name:
 		return
 	delete.emit(row)

@@ -80,6 +80,29 @@
 					"name": "test_option",
 					"is_option": true,
 					"type": "String"
+				},
+				{
+					"name": "test_inner",
+					"is_option": true,
+					"type": "Ref"
+				}
+			]
+		},
+		{
+			"name": "Damage",
+			"struct": [
+				{
+					"name": "amount",
+					"type": "U32"
+				},
+				{
+					"name": "source",
+					"type": "__identity__"
+				},
+				{
+					"name": "int_vec",
+					"is_array": true,
+					"type": "U8"
 				}
 			]
 		},
@@ -123,24 +146,6 @@
 			"is_public": [
 				true,
 				true
-			]
-		},
-		{
-			"name": "Damage",
-			"struct": [
-				{
-					"name": "amount",
-					"type": "U32"
-				},
-				{
-					"name": "source",
-					"type": "__identity__"
-				},
-				{
-					"name": "int_vec",
-					"is_array": true,
-					"type": "U8"
-				}
 			]
 		},
 		{
@@ -292,8 +297,8 @@
 		"Bool": "bool",
 		"Lobby": "MainLobby",
 		"Message": "MainMessage",
-		"User": "MainUser",
 		"Damage": "MainDamage",
+		"User": "MainUser",
 		"UserData": "MainUserData"
 	},
 	"meta_type_map": {
@@ -313,8 +318,8 @@
 		"__time_duration_micros__": "i64",
 		"Lobby": "MainLobby",
 		"Message": "MainMessage",
-		"User": "MainUser",
 		"Damage": "MainDamage",
+		"User": "MainUser",
 		"UserData": "MainUserData"
 	},
 	"tables": [
@@ -383,7 +388,7 @@
 		},
 		{
 			"name": "user",
-			"product_type_ref": 4.0,
+			"product_type_ref": 5.0,
 			"primary_key": [
 				0.0
 			],
@@ -475,7 +480,7 @@
 		},
 		{
 			"name": "user_next",
-			"product_type_ref": 4.0,
+			"product_type_ref": 5.0,
 			"primary_key": [
 				0.0
 			],

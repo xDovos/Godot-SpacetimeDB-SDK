@@ -6,8 +6,8 @@ const Types = preload('res://spacetime_data/schema/module_main_types.gd')
 
 const Lobby = Types.Lobby
 const Message = Types.Message
-const User = Types.User
 const Damage = Types.Damage
+const User = Types.User
 const UserData = Types.UserData
 
 static func change_color_random(cb: Callable = func(_t: TransactionUpdateData): pass) -> void:

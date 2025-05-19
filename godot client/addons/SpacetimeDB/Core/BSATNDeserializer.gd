@@ -85,34 +85,26 @@ func _load_row_schemas(path: String) -> void:
 		if script and script.can_instantiate():
 			var instance_for_name = script.new()
 			if instance_for_name is Resource: # Ensure it's a resource to get metadata
-				var base_name := file_name.get_basename().get_file()
-				var table_name : String = _get_schema_table_name(instance_for_name, base_name)
+				var base_name :Array[String] = [file_name.get_basename().get_file()]
+				var table_names : Array = _get_schema_table_name(instance_for_name, base_name)
 
-				if not table_name.is_empty():
+				for table_name in table_names:
 					var lower_table_name = table_name.to_lower().replace("_", "")
 					if _possible_row_schemas.has(lower_table_name) and debug_mode:
 						push_warning("BSATNDeserializer: Overwriting schema for table '%s' (from %s)" % [table_name, script_path])
 					_possible_row_schemas[lower_table_name] = script
-					if debug_mode: print("BSATNDeserializer: Loaded schema for table '%s' from %s" % [table_name, script_path])
-				elif debug_mode: # Only warn if debug mode is on, might be intentional
-					printerr("BSATNDeserializer: Could not determine table name for schema: ", script_path)
-			# else: Cannot get metadata if not a Resource
-		elif script and debug_mode:
-			printerr("BSATNDeserializer: Script loaded but cannot be instantiated or is not a Resource: ", script_path)
-		elif debug_mode:
-			printerr("BSATNDeserializer: Failed to load script resource: ", script_path)
 
 		file_name_raw = dir.get_next()
 
 	dir.list_dir_end()
 
 
-func _get_schema_table_name(instance: Resource, fallback_base_filename: String) -> String:
-	# Prioritize metadata, then method, then filename
-	if instance.has_meta("table_name"):
-		return instance.get_meta("table_name")
-	elif instance.has_method("get_table_name"):
-		return instance.call("get_table_name")
+func _get_schema_table_name(instance: Resource, fallback_base_filename: Array[String]) -> Array:
+	# Prioritize const, then filename
+	var table_names = instance.get_script().get_script_constant_map()
+	
+	if table_names.has('table_names'):
+		return table_names['table_names']
 	else:
 		return fallback_base_filename
 
