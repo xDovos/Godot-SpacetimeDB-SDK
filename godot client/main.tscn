@@ -21,7 +21,7 @@ sky = SubResource("Sky_h2yge")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="Resource" id="Resource_5vw27"]
+[sub_resource type="Resource" id="Resource_272bh"]
 script = ExtResource("5_272bh")
 identity = PackedByteArray()
 online = false
@@ -36,7 +36,7 @@ player_speed = 0.0
 last_update = 0
 metadata/_custom_type_script = "uid://dn6bfmcowfv70"
 
-[sub_resource type="Resource" id="Resource_272bh"]
+[sub_resource type="Resource" id="Resource_5vw27"]
 script = ExtResource("7_272bh")
 identity = PackedByteArray()
 online = false
@@ -65,12 +65,12 @@ transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 1, 15, 17)
 
 [node name="PlayerSpawner" type="Node3D" parent="." node_paths=PackedStringArray("receiver")]
 script = ExtResource("3_h2yge")
-receiver = NodePath("Receiver [MainUserData]")
 player_scene = ExtResource("2_0xm2m")
+receiver = NodePath("Receiver [MainUserData]")
 
 [node name="Receiver [MainUserData]" type="Node" parent="PlayerSpawner"]
 script = ExtResource("5_7mycd")
-table_to_receive = SubResource("Resource_5vw27")
+table_to_receive = SubResource("Resource_272bh")
 selected_table_name = "user_data"
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 
@@ -80,6 +80,6 @@ receiver = NodePath("Receiver [MainUser]")
 
 [node name="Receiver [MainUser]" type="Node" parent="Lobby"]
 script = ExtResource("5_7mycd")
-table_to_receive = SubResource("Resource_272bh")
+table_to_receive = SubResource("Resource_5vw27")
 selected_table_name = "user"
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"

@@ -178,9 +178,9 @@ func _write_option(option_value: Option, parent_resource: Resource, option_prope
 			if bsatn_type_str.begins_with("vec_"):
 				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_type_str)
 				
-				if inner_value_type == TYPE_ARRAY and not specific_writer_for_inner_value == &"write_vec_u8": # т.е. это Vec<Resource> или Vec<Primitive != u8>
+				if inner_value_type == TYPE_ARRAY and not specific_writer_for_inner_value == &"write_vec_u8": # Vec<Resource> or Vec<Primitive != u8>
 					# Get type from Array
-					# example - "vec_mycustomtype" или "vec_u32"
+					# example - "vec_mycustomtype" or "vec_u32"
 					var inner_element_bsatn_type = bsatn_type_str.substr(4) # "mycustomtype" or "u32"
 					
 					specific_writer_for_inner_value = _get_specific_writer_method_name(inner_element_bsatn_type)
@@ -189,9 +189,10 @@ func _write_option(option_value: Option, parent_resource: Resource, option_prope
 					if not inner_value.is_empty():
 						element_type_for_inner_array = typeof(inner_value[0])
 						if element_type_for_inner_array == TYPE_OBJECT and inner_value[0] is Resource:
-							element_class_for_inner_array = inner_value[0].get_class() # или из скрипта, если есть
-					elif inner_element_bsatn_type == "u8": element_type_for_inner_array = TYPE_INT # Пример
-					elif inner_element_bsatn_type == "string": element_type_for_inner_array = TYPE_STRING # Пример
+							element_class_for_inner_array = inner_value[0].get_class() 
+							
+					elif inner_element_bsatn_type == "u8": element_type_for_inner_array = TYPE_INT
+					elif inner_element_bsatn_type == "string": element_type_for_inner_array = TYPE_STRING 
 					# ...  ...
 					else:
 						element_type_for_inner_array = TYPE_OBJECT
@@ -228,6 +229,8 @@ func _get_specific_writer_method_name(bsatn_type_value) -> StringName:
 		&"f64": return &"write_f64_le"
 		&"f32": return &"write_f32_le"
 		&"vec_u8": return &"write_vec_u8"
+		&'string': return &'write_string_with_u32_len'
+		&'bool': return &'write_bool'
 		# Add other specific types mapped to writer methods if needed
 		_: return &"" # Unknown or non-primitive type
 
