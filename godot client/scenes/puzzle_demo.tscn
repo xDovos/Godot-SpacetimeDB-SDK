@@ -3,16 +3,16 @@
 [ext_resource type="Script" uid="uid://b2l7hyu8fw2wg" path="res://main.gd" id="1_u1py6"]
 [ext_resource type="Script" uid="uid://dem1ds2t7l6l4" path="res://example_code/lobby_holder.gd" id="2_6b2w0"]
 [ext_resource type="Script" uid="uid://jvk6ou7i2d4s" path="res://addons/SpacetimeDB/GodotHelpers/RowReceiver.gd" id="3_6b2w0"]
-[ext_resource type="Script" uid="uid://d2eqxvmj0aj87" path="res://spacetime_data/schema/tables/main_user.gd" id="4_6b2w0"]
+[ext_resource type="Script" uid="uid://b4camji44niu" path="res://spacetime_data/schema/tables/main_user.gd" id="4_6b2w0"]
 [ext_resource type="Script" uid="uid://bbu2mhwjr4hlq" path="res://example_code/players.gd" id="5_4c4fm"]
 [ext_resource type="PackedScene" uid="uid://bn1hfkbb68wno" path="res://scenes/mouse.tscn" id="6_6b2w0"]
 
-[sub_resource type="Resource" id="Resource_bm7eo"]
+[sub_resource type="Resource" id="Resource_6b2w0"]
 script = ExtResource("4_6b2w0")
 identity = PackedByteArray()
 online = false
 lobby_id = 0
-metadata/_custom_type_script = "uid://d2eqxvmj0aj87"
+metadata/_custom_type_script = "uid://bbgh88wh54jui"
 
 [node name="Node2D" type="Node2D"]
 
@@ -25,7 +25,7 @@ receiver = NodePath("Receiver [MainUser]")
 
 [node name="Receiver [MainUser]" type="Node" parent="lobby_holder"]
 script = ExtResource("3_6b2w0")
-table_to_receive = SubResource("Resource_bm7eo")
+table_to_receive = SubResource("Resource_6b2w0")
 selected_table_name = "user"
 metadata/_custom_type_script = "uid://jvk6ou7i2d4s"
 

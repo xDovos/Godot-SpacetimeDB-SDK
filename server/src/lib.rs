@@ -37,6 +37,7 @@ pub struct Message {
     int_vec: Vec<u8>,
     string_vec: Vec<String>,
     test_option: Option<String>,
+    test_option_vec: Option<Vec<String>>,
     test_inner: Option<Damage>,
 }
 
@@ -87,8 +88,9 @@ pub fn client_connected(ctx: &ReducerContext) {
             string_value: "Jupiter".to_owned(),
             int_vec: new_int_vec.clone(),
             string_vec: string_vec.clone(),
-            test_option: Some("Test _opt".to_owned()),
+            test_option: None,
             test_inner: Some(test_damage),
+            test_option_vec: Some(string_vec.clone()),
         };
         ctx.db.user().insert(User {
             identity: ctx.sender,

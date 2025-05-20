@@ -22,8 +22,12 @@ func test_struct():
 	test_one.int_vec = [1,2,3]
 	test_one.string_vec = ["one", "two", "three"]
 	var option = Option.new()
-	option.set_none()
-	test_one.test_option = option
+	option.set_some(["pip", "pop"])
+	test_one.test_option_vec = option
+	
+	var test_option = Option.new()
+	test_option.set_some("Single string")
+	test_one.test_option = test_option
 	var option_inner = Option.new()
 	option_inner.set_some(test_damage)
 	test_one.test_inner = option_inner
