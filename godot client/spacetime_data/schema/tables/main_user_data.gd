@@ -18,7 +18,10 @@ const table_names: Array[String] = ['user_data']
 func _init():
 	set_meta('primary_key', 'identity')
 	set_meta('bsatn_type_identity', &'identity')
+	set_meta('bsatn_type_online', &'bool')
+	set_meta('bsatn_type_name', &'string')
 	set_meta('bsatn_type_lobby_id', &'u64')
+	set_meta('bsatn_type_test_vec', &'string')
 	set_meta('bsatn_type_test_bytes_array', &'u8')
 	set_meta('bsatn_type_player_speed', &'f32')
 	set_meta('bsatn_type_last_update', &'i64')

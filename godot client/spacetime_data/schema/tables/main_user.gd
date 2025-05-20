@@ -13,10 +13,11 @@ const table_names: Array[String] = ['user','user_next']
 func _init():
 	set_meta('primary_key', 'identity')
 	set_meta('bsatn_type_identity', &'identity')
+	set_meta('bsatn_type_online', &'bool')
 	set_meta('bsatn_type_lobby_id', &'u64')
 	set_meta('bsatn_type_damage', &'MainDamage')
-	set_meta('bsatn_type_test_option_string', &'vec_String') # <-- Handwritted
-	set_meta('bsatn_type_test_option_message', &'MainMessage') # <-- Handwritted
+	set_meta('bsatn_type_test_option_string', &'vec_String')
+	set_meta('bsatn_type_test_option_message', &'MainMessage')
 
 static func create(_identity: PackedByteArray, _online: bool, _lobby_id: int, _damage: MainDamage, _test_option_string: Option, _test_option_message: Option) -> MainUser:
 	var result = MainUser.new()

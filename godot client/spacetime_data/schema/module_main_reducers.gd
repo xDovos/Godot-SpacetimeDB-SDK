@@ -4,7 +4,7 @@ static func change_color_random(cb: Callable = func(_t: TransactionUpdateData): 
 	cb.call(__result__)
 
 static func move_user(new_input: Vector2, global_position: Vector3, cb: Callable = func(_t: TransactionUpdateData): pass) -> void:
-	var __id__: int = SpacetimeDB.call_reducer('move_user', [new_input, global_position], ['', ''])
+	var __id__: int = SpacetimeDB.call_reducer('move_user', [new_input, global_position], [&'Vector2', &'Vector3'])
 	var __result__ = await SpacetimeDB.wait_for_reducer_response(__id__)
 	cb.call(__result__)
 

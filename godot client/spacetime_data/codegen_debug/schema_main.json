@@ -82,9 +82,15 @@
 					"type": "String"
 				},
 				{
+					"name": "test_option_vec",
+					"is_option": true,
+					"is_array_inside_option": true,
+					"type": "String"
+				},
+				{
 					"name": "test_inner",
 					"is_option": true,
-					"type": "Ref"
+					"type": "Damage"
 				}
 			]
 		},
@@ -128,12 +134,13 @@
 				{
 					"name": "test_option_string",
 					"is_option": true,
-					"type": "Array"
+					"is_array_inside_option": true,
+					"type": "String"
 				},
 				{
 					"name": "test_option_message",
 					"is_option": true,
-					"type": "Ref"
+					"type": "Message"
 				}
 			],
 			"table_names": [
@@ -295,6 +302,7 @@
 		"Color": "Color",
 		"Quaternion": "Quaternion",
 		"Bool": "bool",
+		"Nil": "null",
 		"Lobby": "MainLobby",
 		"Message": "MainMessage",
 		"Damage": "MainDamage",
@@ -312,6 +320,9 @@
 		"U64": "u64",
 		"F32": "f32",
 		"F64": "f64",
+		"String": "string",
+		"Bool": "bool",
+		"Nil": "nil",
 		"__identity__": "identity",
 		"__connection_id__": "connection_id",
 		"__timestamp_micros_since_unix_epoch__": "i64",

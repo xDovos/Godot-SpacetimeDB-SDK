@@ -6,20 +6,25 @@ class_name MainMessage extends Resource
 @export var int_vec: Array[int]
 @export var string_vec: Array[String]
 @export var test_option: Option
+@export var test_option_vec: Option
 @export var test_inner: Option
 
 func _init():
 	set_meta('bsatn_type_int_value', &'u8')
+	set_meta('bsatn_type_string_value', &'string')
 	set_meta('bsatn_type_int_vec', &'u8')
-	set_meta('bsatn_type_test_option', &'String')
-	set_meta('bsatn_type_test_inner', &'MainDamage') # <-- Handwritted
+	set_meta('bsatn_type_string_vec', &'string')
+	set_meta('bsatn_type_test_option', &'string')
+	set_meta('bsatn_type_test_option_vec', &'vec_String')
+	set_meta('bsatn_type_test_inner', &'MainDamage')
 
-static func create(_int_value: int, _string_value: String, _int_vec: Array[int], _string_vec: Array[String], _test_option: Option, _test_inner: Option) -> MainMessage:
+static func create(_int_value: int, _string_value: String, _int_vec: Array[int], _string_vec: Array[String], _test_option: Option, _test_option_vec: Option, _test_inner: Option) -> MainMessage:
 	var result = MainMessage.new()
 	result.int_value = _int_value
 	result.string_value = _string_value
 	result.int_vec = _int_vec
 	result.string_vec = _string_vec
 	result.test_option = _test_option
+	result.test_option_vec = _test_option_vec
 	result.test_inner = _test_inner
 	return result

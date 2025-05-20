@@ -173,7 +173,6 @@ func _write_option(option_value: Option, parent_resource: Resource, option_prope
 
 		if parent_resource.has_meta(bsatn_meta_key_for_inner_type):
 			var bsatn_type_str = str(parent_resource.get_meta(bsatn_meta_key_for_inner_type)).to_lower()
-			
 			# if T - is Vec<U> (bsatn_type_test_none = &'vec_u8')
 			if bsatn_type_str.begins_with("vec_"):
 				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_type_str)
@@ -240,7 +239,7 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 				  element_variant_type: Variant.Type = TYPE_MAX, \
 				  element_class_name: StringName = &"" \
 				 ) -> bool:
-
+	
 	# 1. Use specific writer method if provided (highest priority, except for arrays)
 	if specific_writer_override != &"" and value_variant_type != TYPE_ARRAY:
 		if has_method(specific_writer_override):
@@ -265,7 +264,7 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 				if value == null: value = [] # Treat null array as empty for serialization
 				if not value is Array: _set_error("Value is not an Array but type is TYPE_ARRAY"); return false
 				# Element type info is required for recursive calls
-				if element_variant_type == TYPE_MAX: _set_error("Cannot serialize array without element type info"); return false
+				if element_variant_type == TYPE_MAX: _set_error("Cannot serialize array without element type info: " + str(value)); return false
 
 				write_u32_le(value.size()) # Write array length (u32)
 				
@@ -314,7 +313,6 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 	for prop in properties:
 		# Only serialize properties marked for storage
 		if not (prop.usage & PROPERTY_USAGE_STORAGE): continue
-
 		var prop_name: StringName = prop.name
 		var prop_type: Variant.Type = prop.type
 		var value = resource.get(prop_name) # Get the actual value from the resource instance
