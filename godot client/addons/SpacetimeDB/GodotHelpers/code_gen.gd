@@ -421,7 +421,7 @@ func generate_reducer_gdscript(schema: Dictionary) -> String:
 					inner_meta_for_option = "vec_%s" % META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
 				else:
 					inner_meta_for_option = META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
-				bsatn_param_type = "%s" % inner_meta_for_option
+				bsatn_param_type = "option_%s" % inner_meta_for_option
 			else:
 				bsatn_param_type = META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
 			
@@ -754,3 +754,55 @@ func is_sum_option(sum_def) -> bool:
 
 
 	return found_some and found_none and none_is_unit
+
+# Reserving the following for future use
+# We will want to make the parasing more recursive to handle the nested types with less if statements
+func parse_field_type(field_type: Dictionary, data: Dictionary, schema_types: Array) -> String:
+	if field_type.has("Array"):
+		var nested_type = data.get("nested_type", [])
+		nested_type.append(&"Array")
+		data["nested_type"] = nested_type
+		data["is_array"] = true		
+		field_type = field_type.Array
+		return parse_field_type(field_type, data, schema_types)
+	elif field_type.has("Product"):
+		return field_type.Product.get("elements", [])[0].get('name', {}).get('some', null)
+	elif field_type.has("Sum"):
+		if is_sum_option(field_type.Sum):
+			var nested_type = data.get("nested_type", [])
+			nested_type.append(&"Option")
+			data["nested_type"] = nested_type
+			data["is_option"] = true			
+		field_type = field_type.Sum.variants[0].get('algebraic_type', {})
+		return parse_field_type(field_type, data, schema_types)
+	elif field_type.has("Ref"):
+		return schema_types[field_type.Ref].get("name", {}).get("name", null)
+	else:
+		return field_type.keys()[0]
+
+func parse_variant_type(variant_type: Dictionary, data: Dictionary, schema_types: Array) -> String:
+	if variant_type.has("Array"):
+		var nested_type = data.get("nested_type", [])
+		nested_type.append(&"Array")
+		data["nested_type"] = nested_type
+		data["is_array"] = true
+		variant_type = variant_type.Array
+		return parse_variant_type(variant_type, data, schema_types)
+	elif variant_type.has("Product"):
+		var variant_type_array = variant_type.Product.get("elements", [])
+		if variant_type_array.size() >= 1:
+			return variant_type_array[0].get('name', {}).get('some', null)
+		else:
+			return ""
+	elif variant_type.has("Sum"):
+		if is_sum_option(variant_type.Sum):
+			var nested_type = data.get("nested_type", [])
+			nested_type.append(&"Option")
+			data["nested_type"] = nested_type
+			data["is_option"] = true
+		variant_type = variant_type.Sum.variants[0].get('algebraic_type', {})
+		return parse_variant_type(variant_type, data, schema_types)
+	elif variant_type.has("Ref"):
+		return schema_types[variant_type.Ref].get("name", {}).get("name", null)
+	else:
+		return variant_type.keys()[0]
