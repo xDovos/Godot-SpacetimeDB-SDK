@@ -15,7 +15,7 @@ func _init():
 	set_meta('bsatn_type_int_vec', &'u8')
 	set_meta('bsatn_type_string_vec', &'string')
 	set_meta('bsatn_type_test_option', &'string')
-	set_meta('bsatn_type_test_option_vec', &'vec_String')
+	set_meta('bsatn_type_test_option_vec', &'vec_string')
 	set_meta('bsatn_type_test_inner', &'MainDamage')
 
 static func create(_int_value: int, _string_value: String, _int_vec: Array[int], _string_vec: Array[String], _test_option: Option, _test_option_vec: Option, _test_inner: Option) -> MainMessage:
