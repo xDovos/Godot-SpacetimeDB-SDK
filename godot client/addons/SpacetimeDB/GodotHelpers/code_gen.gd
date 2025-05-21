@@ -421,7 +421,7 @@ func generate_reducer_gdscript(schema: Dictionary) -> String:
 					inner_meta_for_option = "vec_%s" % META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
 				else:
 					inner_meta_for_option = META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
-				bsatn_param_type = "option_%s" % inner_meta_for_option
+				bsatn_param_type = "%s" % inner_meta_for_option
 			else:
 				bsatn_param_type = META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
 			
