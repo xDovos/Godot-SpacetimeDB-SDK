@@ -222,11 +222,13 @@ func generate_struct_gdscript(type_def, module_name, table_names) -> String:
 		if field.has("is_option"):
 			gd_field_type = OPTION_CLASS_NAME
 			if field.has("is_array_inside_option"):
-				bsatn_meta_type_string = "vec_%s" % original_inner_type_name
+				bsatn_meta_type_string = "vec_%s" % META_TYPE_MAP.get(original_inner_type_name, "Variant")
 			else:
 				bsatn_meta_type_string = META_TYPE_MAP.get(original_inner_type_name, original_inner_type_name)
 		elif field.has("is_array"):
 			var element_gd_type = TYPE_MAP.get(original_inner_type_name, "Variant")
+			if field.has("is_option_inside_array"):
+				element_gd_type = OPTION_CLASS_NAME
 			gd_field_type = "Array[%s]" % element_gd_type
 			var inner_meta = META_TYPE_MAP.get(original_inner_type_name, original_inner_type_name)
 			bsatn_meta_type_string = "%s" % inner_meta
@@ -391,6 +393,8 @@ func generate_reducer_gdscript(schema: Dictionary) -> String:
 				gd_param_type = OPTION_CLASS_NAME
 			elif param.has("is_array"):
 				var element_gd_type = TYPE_MAP.get(original_inner_type_name, "Variant")
+				if param.has("is_option_inside_array"):
+					element_gd_type = OPTION_CLASS_NAME
 				gd_param_type = "Array[%s]" % element_gd_type
 			else:
 				gd_param_type = TYPE_MAP.get(original_inner_type_name, "Variant")
@@ -414,7 +418,7 @@ func generate_reducer_gdscript(schema: Dictionary) -> String:
 			if x.has("is_option"):
 				var inner_meta_for_option: String
 				if x.has("is_array_inside_option"):
-					inner_meta_for_option = "vec_%s" % original_inner_type_name_bsatn
+					inner_meta_for_option = "vec_%s" % META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
 				else:
 					inner_meta_for_option = META_TYPE_MAP.get(original_inner_type_name_bsatn, original_inner_type_name_bsatn)
 				bsatn_param_type = "option_%s" % inner_meta_for_option
@@ -467,7 +471,6 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 			var element_data := { "name": e_schema.get("name",{}).get("some", null) }
 			var algebraic_type_desc = e_schema.get(element_key_in_schema, {}) 
 			var original_inner_type_name: String = "Variant"
-
 			if algebraic_type_desc.has("Sum") and is_sum_option(algebraic_type_desc.Sum):
 				element_data["is_option"] = true
 				var some_variant_type = {}
@@ -509,6 +512,22 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 					var ref_idx = int(array_content_type.Ref)
 					if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds in Array<Ref>"); return []
 					original_inner_type_name = schema_types_raw[ref_idx].get("name", {}).get("name", null)
+				elif array_content_type.has("Sum") and is_sum_option(array_content_type.Sum):				
+					element_data["is_option_inside_array"] = true
+					var some_variant_type = {}
+					for v_opt in array_content_type.Sum.variants:
+						if v_opt.get("name",{}).get("some") == "some":
+							some_variant_type = v_opt.get('algebraic_type', {})
+							break
+					if some_variant_type.is_empty() and not array_content_type.Sum.variants.is_empty(): # Fallback if not found, or if "some" is truly empty
+						printerr("Could not find 'some' variant for Array<Option> type, or 'some' variant type is empty: ", array_content_type)
+					if some_variant_type.has("Ref"):
+						var ref_idx = int(some_variant_type.Ref)
+						if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds in Array<Option<Ref>>"); return []
+						original_inner_type_name = schema_types_raw[ref_idx].get("name", {}).get("name", null)
+					else:
+						if some_variant_type.keys().is_empty(): printerr("Empty type for Array<Option<T>> inner T"); return []
+						original_inner_type_name = some_variant_type.keys()[0]
 				elif array_content_type.is_empty(): # Array<()>
 					original_inner_type_name = "Nil"
 				else:
