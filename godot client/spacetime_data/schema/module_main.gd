@@ -25,6 +25,16 @@ static func save_my_bytes(bytes: Array[int], cb: Callable = func(_t: Transaction
 	var __result__ = await SpacetimeDB.wait_for_reducer_response(__id__)
 	cb.call(__result__)
 
+static func test_option_single(option: Option, cb: Callable = func(_t: TransactionUpdateData): pass) -> void:
+	var __id__: int = SpacetimeDB.call_reducer('test_option_single', [option], [&'string'])
+	var __result__ = await SpacetimeDB.wait_for_reducer_response(__id__)
+	cb.call(__result__)
+
+static func test_option_vec(option: Option, cb: Callable = func(_t: TransactionUpdateData): pass) -> void:
+	var __id__: int = SpacetimeDB.call_reducer('test_option_vec', [option], [&'vec_string'])
+	var __result__ = await SpacetimeDB.wait_for_reducer_response(__id__)
+	cb.call(__result__)
+
 static func test_struct(message: MainMessage, cb: Callable = func(_t: TransactionUpdateData): pass) -> void:
 	var __id__: int = SpacetimeDB.call_reducer('test_struct', [message], [&'MainMessage'])
 	var __result__ = await SpacetimeDB.wait_for_reducer_response(__id__)

@@ -16,7 +16,7 @@ func _init():
 	set_meta('bsatn_type_online', &'bool')
 	set_meta('bsatn_type_lobby_id', &'u64')
 	set_meta('bsatn_type_damage', &'MainDamage')
-	set_meta('bsatn_type_test_option_string', &'vec_String')
+	set_meta('bsatn_type_test_option_string', &'vec_string')
 	set_meta('bsatn_type_test_option_message', &'MainMessage')
 
 static func create(_identity: PackedByteArray, _online: bool, _lobby_id: int, _damage: MainDamage, _test_option_string: Option, _test_option_message: Option) -> MainUser:

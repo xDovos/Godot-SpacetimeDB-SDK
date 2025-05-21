@@ -267,6 +267,27 @@
 			]
 		},
 		{
+			"name": "test_option_single",
+			"params": [
+				{
+					"name": "option",
+					"is_option": true,
+					"type": "String"
+				}
+			]
+		},
+		{
+			"name": "test_option_vec",
+			"params": [
+				{
+					"name": "option",
+					"is_option": true,
+					"is_array_inside_option": true,
+					"type": "String"
+				}
+			]
+		},
+		{
 			"name": "test_struct",
 			"params": [
 				{

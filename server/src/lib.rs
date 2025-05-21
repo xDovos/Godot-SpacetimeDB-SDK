@@ -207,7 +207,15 @@ pub fn test_struct(
     //log::info!("{}, another : {}", formatted, formatted_second);
     Err(format!("{}", formatted))
 }
+#[reducer]
+pub fn test_option_vec(ctx: &ReducerContext, option: Option<Vec<String>>) -> Result<(), String> {
+    Err(format!("{:?}", option))
+}
 
+#[reducer]
+pub fn test_option_single(ctx: &ReducerContext, option: Option<String>) -> Result<(), String> {
+    Err(format!("{:?}", option))
+}
 #[reducer]
 pub fn save_my_bytes(ctx: &ReducerContext, bytes: Vec<u8>) {
     if let Some(mut user_data) = ctx.db.user_data().identity().find(ctx.sender) {

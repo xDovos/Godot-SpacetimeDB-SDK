@@ -37,6 +37,18 @@ func test_struct():
 		pass)
 	pass;
 
+func test_option_vec(text):
+	var opt = Option.new()
+	opt.set_some(text)
+	MainModule.test_option_vec(opt)
+	pass;
+	
+func test_option_single(text):
+	var opt = Option.new()
+	opt.set_some(text)
+	MainModule.test_option_single(opt)
+	pass;
+	
 	
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -44,6 +56,8 @@ func _input(event: InputEvent) -> void:
 		
 	if event.is_action_pressed("ui_accept"):
 		test_struct()
+		test_option_vec(["Hello","World"])
+		test_option_single("Welcome")
 
 func _initialize_player_on_insert(user_data:MainUserData):
 	#Need to receive only THIS entity/table updates 
