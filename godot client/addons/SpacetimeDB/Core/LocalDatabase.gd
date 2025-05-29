@@ -12,7 +12,8 @@ var _primary_key_cache: Dictionary = {}
 signal row_inserted(table_name: String, row: Resource)
 signal row_updated(table_name: String, previous_row: Resource, row: Resource)
 signal row_deleted(table_name: String, row: Resource) 
-signal row_deleted_key(table_name: String, primary_key) 
+signal row_deleted_key(table_name: String, primary_key)
+signal row_transactions_completed(table_name: String)
 
 func _init(row_schemas: Dictionary):
 	self._row_schemas = row_schemas
@@ -107,6 +108,9 @@ func apply_table_update(table_update: TableUpdateData):
 		else:
 			push_warning("LocalDatabase: Tried to delete row with PK '", pk_value, "' from table '", table_update.table_name, "' but it wasn't found.")
 
+	# Emits transactions completed signal when all the transactions from
+	# current table update were completed
+	row_transactions_completed.emit(table_update.table_name)
 
 # --- Access Methods ---
 
