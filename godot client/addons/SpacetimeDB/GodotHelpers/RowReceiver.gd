@@ -11,6 +11,7 @@ var _derived_table_names: Array[String] = []
 signal insert(row: _ModuleTable)
 signal update(prev: _ModuleTable, row: _ModuleTable)
 signal delete(row: _ModuleTable)
+signal transactions_completed
 
 func on_set(schema: _ModuleTable):
 	
@@ -80,6 +81,7 @@ func _ready() -> void:
 	SpacetimeDB.row_inserted.connect(_on_insert)
 	SpacetimeDB.row_updated.connect(_on_update)
 	SpacetimeDB.row_deleted.connect(_on_delete)
+	SpacetimeDB.row_transactions_completed.connect(_on_transactions_completed)
 
 	if not table_to_receive:
 		push_error("No data schema. Node path: ", get_path())
@@ -112,3 +114,8 @@ func _on_delete(_table_name: String, row: _ModuleTable):
 	if _table_name != selected_table_name:
 		return
 	delete.emit(row)
+
+func _on_transactions_completed(table_name: String):
+	if table_name != selected_table_name:
+		return
+	transactions_completed.emit()

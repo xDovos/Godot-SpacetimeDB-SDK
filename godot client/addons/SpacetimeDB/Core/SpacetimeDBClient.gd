@@ -38,6 +38,7 @@ signal row_inserted(table_name: String, row: Resource) # From LocalDatabase
 signal row_updated(table_name: String, previous: Resource, row: Resource) # From LocalDatabase
 signal row_deleted(table_name: String, row: Resource)
 signal row_deleted_key(table_name: String, primary_key) # From LocalDatabase
+signal row_transactions_completed(table_name: String) # From LocalDatabase
 signal reducer_call_response(response: Resource) # TODO: Define response resource
 signal reducer_call_timeout(request_id: int) # TODO: Implement timeout logic
 signal transaction_update_received(update: TransactionUpdateData)
@@ -68,6 +69,7 @@ func initialize_and_connect():
 	_local_db.row_updated.connect(func(tn, p, r) -> void: row_updated.emit(tn, p, r))
 	_local_db.row_deleted.connect(func(tn, r) -> void: row_deleted.emit(tn, r))
 	_local_db.row_deleted_key.connect(func(tn, pk) -> void: row_deleted_key.emit(tn, pk))
+	_local_db.row_transactions_completed.connect(func(tn) -> void: row_transactions_completed.emit(tn))
 	add_child(_local_db) # Add as child if it needs signals
 
 	# 3. Initialize REST API Handler (optional, mainly for token)
