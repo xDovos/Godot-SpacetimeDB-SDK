@@ -465,97 +465,6 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 	var parsed_types_list := [] 
 	var scheduled_reducers: Array[String] = []
 	
-	var process_elements_func = func(elements_arr: Array, element_key_in_schema: String) -> Array:
-		var parsed_elements_result := []
-		for e_schema in elements_arr:
-			var element_data := { "name": e_schema.get("name",{}).get("some", null) }
-			var algebraic_type_desc = e_schema.get(element_key_in_schema, {}) 
-			var original_inner_type_name: String = "Variant"
-			if algebraic_type_desc.has("Sum") and is_sum_option(algebraic_type_desc.Sum):
-				element_data["is_option"] = true
-				var some_variant_type = {}
-				for v_opt in algebraic_type_desc.Sum.variants:
-					if v_opt.get("name",{}).get("some") == "some":
-						some_variant_type = v_opt.get('algebraic_type', {})
-						break
-				if some_variant_type.is_empty() and not algebraic_type_desc.Sum.variants.is_empty(): # Fallback if not found, or if "some" is truly empty
-					printerr("Could not find 'some' variant for Option type, or 'some' variant type is empty: ", algebraic_type_desc)
-					
-				if some_variant_type.has("Array"):
-					element_data["is_array_inside_option"] = true
-					var array_content_type = some_variant_type.Array
-					if array_content_type.has("Ref"):
-						var ref_idx = int(array_content_type.Ref)
-						if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds in Option<Array<Ref>>"); return [] 
-						original_inner_type_name = schema_types_raw[ref_idx].get("name", {}).get("name", null)
-					elif array_content_type.is_empty(): # e.g. Option<Array<()>>
-						original_inner_type_name = "Nil" 
-					else:
-						if array_content_type.keys().is_empty(): printerr("Empty type for Option<Array<T>> inner T"); return []
-						original_inner_type_name = array_content_type.keys()[0]
-				elif some_variant_type.has("Ref"):
-					var ref_idx = int(some_variant_type.Ref)
-					if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds in Option<Ref>"); return []
-					original_inner_type_name = schema_types_raw[ref_idx].get("name", {}).get("name", null)
-				elif some_variant_type.has("Product") and \
-					 some_variant_type.Product.get("elements", []).is_empty(): # Option<()>
-					original_inner_type_name = "Nil"
-				elif some_variant_type.is_empty(): # Also Option<()> if algebraic_type for "some" is {}
-					original_inner_type_name = "Nil"
-				else:
-					if some_variant_type.keys().is_empty(): printerr("Empty type for Option 'some' variant's T"); return []
-					original_inner_type_name = some_variant_type.keys()[0]
-			elif algebraic_type_desc.has("Array"):
-				element_data["is_array"] = true
-				var array_content_type = algebraic_type_desc.Array
-				if array_content_type.has("Ref"):
-					var ref_idx = int(array_content_type.Ref)
-					if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds in Array<Ref>"); return []
-					original_inner_type_name = schema_types_raw[ref_idx].get("name", {}).get("name", null)
-				elif array_content_type.has("Sum") and is_sum_option(array_content_type.Sum):				
-					element_data["is_option_inside_array"] = true
-					var some_variant_type = {}
-					for v_opt in array_content_type.Sum.variants:
-						if v_opt.get("name",{}).get("some") == "some":
-							some_variant_type = v_opt.get('algebraic_type', {})
-							break
-					if some_variant_type.is_empty() and not array_content_type.Sum.variants.is_empty(): # Fallback if not found, or if "some" is truly empty
-						printerr("Could not find 'some' variant for Array<Option> type, or 'some' variant type is empty: ", array_content_type)
-					if some_variant_type.has("Ref"):
-						var ref_idx = int(some_variant_type.Ref)
-						if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds in Array<Option<Ref>>"); return []
-						original_inner_type_name = schema_types_raw[ref_idx].get("name", {}).get("name", null)
-					else:
-						if some_variant_type.keys().is_empty(): printerr("Empty type for Array<Option<T>> inner T"); return []
-						original_inner_type_name = some_variant_type.keys()[0]
-				elif array_content_type.is_empty(): # Array<()>
-					original_inner_type_name = "Nil"
-				else:
-					if array_content_type.keys().is_empty(): printerr("Empty type for Array element T"); return []
-					original_inner_type_name = array_content_type.keys()[0]
-			elif algebraic_type_desc.has("Ref"):
-				var ref_idx = int(algebraic_type_desc.Ref)
-				if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds for Ref type"); return []
-				original_inner_type_name = schema_types_raw[ref_idx].get("name", {}).get("name", null)
-			elif algebraic_type_desc.has("Product") and \
-				 algebraic_type_desc.Product.get("elements", []).size() == 1 and \
-				 algebraic_type_desc.Product.elements[0].get('name', {}).get('some', "").begins_with("__"): # Special types like __identity__
-				original_inner_type_name = algebraic_type_desc.Product.elements[0].get('name', {}).get('some', null)
-			elif algebraic_type_desc.has("Product") and algebraic_type_desc.Product.get("elements", []).is_empty(): # Unit type ()
-				original_inner_type_name = "Nil"
-			elif algebraic_type_desc.is_empty(): # Also Unit type ()
-				original_inner_type_name = "Nil"
-			else: 
-				if algebraic_type_desc.keys().is_empty():
-					printerr("Empty algebraic_type_desc for element: ", e_schema); return []
-				original_inner_type_name = algebraic_type_desc.keys()[0]
-			
-			if original_inner_type_name == null:
-				printerr("Failed to determine type name for element: ", e_schema); return []
-			element_data["type"] = original_inner_type_name
-			parsed_elements_result.append(element_data)
-		return parsed_elements_result
-
 	for type_info in schema_types_raw:
 		var type_name: String = type_info.get("name", {}).get("name", null)
 		if not type_name:
@@ -689,6 +598,7 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		"type_map": TYPE_MAP, 
 		"meta_type_map": META_TYPE_MAP,
 		"tables": schema_tables, 
+		"typespace": typespace
 	}
 	return parsed_schema_output
 
