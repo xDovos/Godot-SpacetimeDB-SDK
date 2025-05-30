@@ -561,9 +561,7 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		if not type_name:
 			printerr("Invalid schema: Type name not found for type: %s" % type_info)
 			return {}
-		var type_data := {
-			"name": type_name,
-		}
+		var type_data := {"name": type_name}
 		if GDNATIVE_TYPES.has(type_name):
 			type_data["gd_native"] = true
 		
@@ -580,17 +578,15 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		var sum_type_def: Dictionary = current_type_definition.get("Sum", {}) 
 
 		if struct_def:
-			var struct_elements = process_elements_func.call(struct_def.get("elements", []), "algebraic_type")
-			if struct_elements.is_empty() and not struct_def.get("elements", []).is_empty() and not (struct_def.get("elements",[]).size() == 1 and struct_def.elements[0].get("algebraic_type",{}).is_empty()):
-				var is_truly_unit_struct = true
-				if not struct_def.get("elements", []).is_empty():
-					for el_check in struct_def.get("elements", []):
-						if not el_check.get("algebraic_type", {}).is_empty() and not (el_check.get("algebraic_type", {}).has("Product") and el_check.get("algebraic_type", {}).Product.get("elements",[]).is_empty()):
-							is_truly_unit_struct = false
-							break
-				if not is_truly_unit_struct:
-					printerr("Error processing struct elements for: ", type_name)
-					return {}
+			var struct_elements = []
+			for el in struct_def.get("elements", []):
+				var data = {
+					"name": el.get("name", {}).get("some", null),
+				}
+				var type = parse_field_type(el.get("algebraic_type", {}), data, schema_types_raw)
+				if not type.is_empty():
+					data["type"] = type
+				struct_elements.append(data)
 			
 			if not type_data.has("gd_native"):
 				TYPE_MAP[type_name] = module_name.to_pascal_case() + type_name.to_pascal_case()
@@ -599,36 +595,13 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 			parsed_types_list.append(type_data)
 		elif sum_type_def: 
 			var parsed_variants := []
-			type_data["is_sum_type"] = false
-			for v_schema in sum_type_def.get("variants", []):
-				var variant_data := { "name": v_schema.get("name",{}).get("some", null) }
-				var variant_algebraic_type = v_schema.get("algebraic_type", {})
-				var variant_inner_type_name: String = ""
-				
-				if not variant_algebraic_type.is_empty() and \
-				   not (variant_algebraic_type.has("Product") and variant_algebraic_type.Product.get("elements", []).is_empty()):
-					type_data["is_sum_type"] = true
-					if variant_algebraic_type.has("Array"):
-						variant_data["is_array"] = true
-						var array_content = variant_algebraic_type.Array
-						if array_content.has("Ref"):
-							var ref_idx = int(array_content.Ref)
-							if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds for Sum variant Array<Ref>"); return {}
-							variant_inner_type_name = schema_types_raw[ref_idx].get("name",{}).get("name",null)
-						elif array_content.keys().is_empty(): variant_inner_type_name = "Nil"
-						else: variant_inner_type_name = array_content.keys()[0]
-					elif variant_algebraic_type.has("Ref"):
-						var ref_idx = int(variant_algebraic_type.Ref)
-						if ref_idx >= schema_types_raw.size(): printerr("Ref index out of bounds for Sum variant Ref"); return {}
-						variant_inner_type_name = schema_types_raw[ref_idx].get("name",{}).get("name",null)
-					else: 
-						if variant_algebraic_type.keys().is_empty(): printerr("Empty type for Sum variant data"); return {}
-						variant_inner_type_name = variant_algebraic_type.keys()[0]
-					
-					if variant_inner_type_name == null: printerr("Null type name for Sum variant data"); return {}
-					variant_data["type"] = variant_inner_type_name
-				parsed_variants.append(variant_data)
-			
+			type_data["is_sum_type"] = not is_sum_option(sum_type_def)
+			for v in sum_type_def.get("variants", []):
+				var variant_data := { "name": v.get("name",{}).get("some", null) }
+				var type = parse_sum_type(v.get("algebraic_type", {}), variant_data, schema_types_raw)
+				if not type.is_empty():
+					variant_data["type"] = type
+				parsed_variants.append(variant_data)			
 			type_data["enum"] = parsed_variants
 			parsed_types_list.append(type_data)
 
@@ -645,7 +618,6 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 					parsed_types_list.append(type_data)
 				else:
 					Spacetime.print_log("Type '%s' has no Product/Sum definition in typespace and is not GDNative. Skipping." % type_name)
-
 
 	for table_info in schema_tables:
 		var table_name_str: String = table_info.get("name", null) 
@@ -698,19 +670,12 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		var reducer_data: Dictionary = {"name": r_name}
 		
 		var reducer_raw_params = reducer_info.get("params", {}).get("elements", [])
-		var reducer_params = process_elements_func.call(reducer_raw_params, "algebraic_type")
-		
-		if reducer_params.is_empty() and not reducer_raw_params.is_empty():
-			var all_params_were_unit = true
-			for raw_param in reducer_raw_params:
-				var alg_type = raw_param.get("algebraic_type", {})
-				if not alg_type.is_empty() and not (alg_type.has("Product") and alg_type.Product.get("elements",[]).is_empty()):
-					all_params_were_unit = false
-					break
-			if not all_params_were_unit:
-				printerr("Error processing reducer params for: ", r_name)
-				return {}
-		
+		var reducer_params = []
+		for raw_param in reducer_raw_params:
+			var data = {"name": raw_param.get("name", {}).get("some", null)}
+			var type = parse_field_type(raw_param.get("algebraic_type", {}), data, schema_types_raw)
+			data["type"] = type
+			reducer_params.append(data)	
 		reducer_data["params"] = reducer_params
 		
 		if r_name in scheduled_reducers:
@@ -726,7 +691,6 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 		"tables": schema_tables, 
 	}
 	return parsed_schema_output
-
 
 func is_sum_option(sum_def) -> bool: 
 	var variants = sum_def.get("variants", [])
@@ -755,14 +719,16 @@ func is_sum_option(sum_def) -> bool:
 
 	return found_some and found_none and none_is_unit
 
-# Reserving the following for future use
-# We will want to make the parasing more recursive to handle the nested types with less if statements
+# Recursively parse a field type
 func parse_field_type(field_type: Dictionary, data: Dictionary, schema_types: Array) -> String:
 	if field_type.has("Array"):
 		var nested_type = data.get("nested_type", [])
 		nested_type.append(&"Array")
 		data["nested_type"] = nested_type
-		data["is_array"] = true		
+		if data.has("is_option"):
+			data["is_array_inside_option"] = true
+		else:
+			data["is_array"] = true		
 		field_type = field_type.Array
 		return parse_field_type(field_type, data, schema_types)
 	elif field_type.has("Product"):
@@ -772,7 +738,10 @@ func parse_field_type(field_type: Dictionary, data: Dictionary, schema_types: Ar
 			var nested_type = data.get("nested_type", [])
 			nested_type.append(&"Option")
 			data["nested_type"] = nested_type
-			data["is_option"] = true			
+			if data.has("is_array"):
+				data["is_option_inside_array"] = true
+			else:
+				data["is_option"] = true			
 		field_type = field_type.Sum.variants[0].get('algebraic_type', {})
 		return parse_field_type(field_type, data, schema_types)
 	elif field_type.has("Ref"):
@@ -780,14 +749,15 @@ func parse_field_type(field_type: Dictionary, data: Dictionary, schema_types: Ar
 	else:
 		return field_type.keys()[0]
 
-func parse_variant_type(variant_type: Dictionary, data: Dictionary, schema_types: Array) -> String:
+# Recursively parse a sum type
+func parse_sum_type(variant_type: Dictionary, data: Dictionary, schema_types: Array) -> String:
 	if variant_type.has("Array"):
 		var nested_type = data.get("nested_type", [])
 		nested_type.append(&"Array")
 		data["nested_type"] = nested_type
 		data["is_array"] = true
 		variant_type = variant_type.Array
-		return parse_variant_type(variant_type, data, schema_types)
+		return parse_sum_type(variant_type, data, schema_types)
 	elif variant_type.has("Product"):
 		var variant_type_array = variant_type.Product.get("elements", [])
 		if variant_type_array.size() >= 1:
@@ -801,7 +771,7 @@ func parse_variant_type(variant_type: Dictionary, data: Dictionary, schema_types
 			data["nested_type"] = nested_type
 			data["is_option"] = true
 		variant_type = variant_type.Sum.variants[0].get('algebraic_type', {})
-		return parse_variant_type(variant_type, data, schema_types)
+		return parse_sum_type(variant_type, data, schema_types)
 	elif variant_type.has("Ref"):
 		return schema_types[variant_type.Ref].get("name", {}).get("name", null)
 	else:
