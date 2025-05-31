@@ -15,6 +15,14 @@ class_name Option extends Resource
 
 var _internal_data: Array = []
 
+static func some(value: Variant) -> Option:
+	var result = Option.new()
+	result.set_some(value)
+	return result
+
+static func none() -> Option:
+	return Option.new().set_none()
+
 func is_some() -> bool:
 	return _internal_data.size() > 0
 
@@ -33,6 +41,24 @@ func unwrap_or(default_value):
 		return _internal_data[0]
 	else:
 		return default_value
+
+func unwrap_or_else(fn: Callable):
+	if is_some():
+		return _internal_data[0]
+	else:
+		return fn.call()
+
+func expect(type: Variant.Type, err_msg: String = ""):
+	if is_some():
+		if typeof(_internal_data[0]) != type:
+			err_msg = "Expected type %s, got %s" % [type, typeof(_internal_data[0])] if err_msg.is_empty() else err_msg
+			push_error(err_msg)
+			return null
+		return _internal_data[0]
+	else:
+		err_msg = "Expected type %s, got None" % type if err_msg.is_empty() else err_msg
+		push_error(err_msg)
+		return null
 		
 func set_some(value):
 	self.data = [value]
