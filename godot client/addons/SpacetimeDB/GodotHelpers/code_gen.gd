@@ -221,7 +221,7 @@ func generate_struct_gdscript(type_def, module_name, table_names) -> String:
 		var gd_field_type: String
 		var bsatn_meta_type_string: String
 		var documentation_comment: String
-		var nested_type: Array = field.get("nested_type", [])
+		var nested_type: Array = field.get("nested_type", []).duplicate()
 		nested_type.append(TYPE_MAP.get(original_inner_type_name, "Variant"))
 		
 		if field.has("is_option"):
@@ -309,7 +309,7 @@ func generate_enum_gdscript(type_def, module_name) -> String:
 	for v_schema in variants:
 		var variant_name: String = v_schema.get("name", "")
 		var variant_gd_type: String = TYPE_MAP.get(v_schema.get("type", ""), "Variant")
-		var nested_type: Array = v_schema.get("nested_type", [])
+		var nested_type: Array = v_schema.get("nested_type", []).duplicate()
 		nested_type.append(variant_gd_type)
 		if v_schema.has("is_option"):
 			variant_gd_type = OPTION_CLASS_NAME
@@ -400,11 +400,16 @@ func generate_reducer_gdscript(schema: Dictionary) -> String:
 	for reducer in schema.get("reducers", []):
 		if reducer.get("is_scheduled", false) and HIDE_SCHEDULED_REDUCERS: continue
 		var params_str_parts: Array[String] = []
-		for param in reducer.get("params", []):
+		var description_comment: Array = []
+		var reducer_params = reducer.get("params", [])
+		for i in reducer_params.size():
+			var param = reducer_params[i]
 			var param_name: String = param.get("name", "")
 			var gd_param_type: String
 			var original_inner_type_name: String = param.get("type", "Variant")
-
+			var nested_type: Array = param.get("nested_type", []).duplicate()
+			nested_type.append(TYPE_MAP.get(original_inner_type_name, "Variant"))
+			description_comment.append("## %d. %s: %s [br]" % [i, param_name, " of ".join(nested_type)])
 			if param.has("is_option"):
 				gd_param_type = OPTION_CLASS_NAME
 			elif param.has("is_array"):
@@ -447,7 +452,8 @@ func generate_reducer_gdscript(schema: Dictionary) -> String:
 		var param_bsatn_types_str = ""
 		if not param_bsatn_types_list.is_empty():
 			param_bsatn_types_str = ", ".join(param_bsatn_types_list)
-			
+		
+		content += "\n".join(description_comment) + "\n"
 		var reducer_name: String = reducer.get("name", "")
 		content += "static func %s(%s) -> void:\n" % [reducer_name, params_str] + \
 		"\tvar __id__: int = SpacetimeDB.call_reducer('%s', [%s], [%s])\n" % \

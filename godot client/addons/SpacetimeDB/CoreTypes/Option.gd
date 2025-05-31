@@ -21,7 +21,9 @@ static func some(value: Variant) -> Option:
 	return result
 
 static func none() -> Option:
-	return Option.new().set_none()
+	var result = Option.new()
+	result.set_none()
+	return result
 
 func is_some() -> bool:
 	return _internal_data.size() > 0
