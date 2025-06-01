@@ -136,8 +136,23 @@ func write_rust_enum(rust_enum: RustEnum) -> void:
 		if data is not Array:
 			_set_error("Sum type of rust enum is Vec<T> but the godot type is not an array.")
 			return
-		var vec_type = sub_class.get_slice("_", 1)
+		var vec_type = sub_class.right(-4)
+		# If it's an Option type, we need to remove the opt prefix for the serializer
+		# This is a special case, the enum needs more info for the deserializer
+		if vec_type.begins_with("opt"):
+			vec_type = vec_type.right(-4)
 		_write_argument_value(data, vec_type)
+		return
+	if sub_class.begins_with("opt"):
+		if data is not Option:
+			_set_error("Sum type of rust enum is Option<T> but the godot type is not an Option.")
+			return
+		var opt_type = sub_class.right(-4)
+		# If it's a Vec type, we need to remove the vec prefix for the serializer
+		# This is a special case, the enum needs more info for the deserializer
+		if opt_type.begins_with("vec"):
+			opt_type = opt_type.right(-4)
+		_write_argument_value(data, opt_type)
 		return
 	if not sub_class.is_empty():
 		if not data:
@@ -159,17 +174,22 @@ func _write_option(option_value: Option, option_property_name: StringName, rust_
 		if has_error():
 			_set_error("Failed to write Some tag for Option property '%s'." % option_property_name)
 			return false
-		
 		if rust_type.begins_with("vec"):
-			if option_value.data is not Array:
+			if option_value.unwrap() is not Array:
 				_set_error("Option type is Vec<T> but the godot type is not an array.")
 				return false
-			var vec_type = rust_type.get_slice("_", 1)
+			var vec_type = rust_type.right(-4)
 			_write_argument_value(option_value.unwrap(), vec_type)
 		else:
 			_write_argument_value(option_value.unwrap(), rust_type)				
 		return true
 
+func _write_array_of_option(array_of_option_value: Array, rust_type: String) -> bool:
+	write_u32_le(array_of_option_value.size())
+	for option_value in array_of_option_value:
+		if not _write_option(option_value, "", rust_type):
+			return false
+	return true
 
 # --- Core Serialization Logic ---
 
@@ -234,7 +254,6 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 				
 				for element in value:
 					if has_error(): return false # Stop early if an error occurred writing previous elements
-
 					# Recursively call _write_value for the element.
 					# Pass the element's type info.
 					# Crucially, pass the specific_writer_override determined from the *array's* metadata,
@@ -244,7 +263,7 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 						if not has_error(): _set_error("Failed to write array element.") # Ensure error is set
 						return false
 			TYPE_OBJECT:
-				if value is Option:
+				if value is Option:	
 					_set_error("Internal error: _write_value called directly for an Option instance. This should be handled by _serialize_resource_fields.")
 					return false
 				if value is RustEnum:
@@ -272,6 +291,7 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 	if resource is RustEnum:
 		write_rust_enum(resource)
 		return true
+		
 	
 	var properties: Array = resource.get_script().get_script_property_list()
 	for prop in properties:
@@ -289,7 +309,11 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 		if resource.has_meta(meta_key):
 			# This metadata applies to the field itself, or to the *elements* if it's an array.
 			specific_writer_method = _get_specific_writer_method_name(resource.get_meta(meta_key))
-
+			
+		if value is Option:
+			_write_option(value, prop_name, resource.get_meta(meta_key))
+			continue
+		
 		# If the property is an array, we need element type info for the recursive call
 		if prop_type == TYPE_ARRAY:
 			# Extract element type info from the hint string (Godot 3 or 4 format)
@@ -297,8 +321,12 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 			if prop.hint == PROPERTY_HINT_TYPE_STRING and ":" in prop.hint_string: # Godot 3: "Type:TypeName"
 				var hint_parts = prop.hint_string.split(":", true, 1)
 				if hint_parts.size() == 2:
+					if hint_parts[1] == "Option":						
+						_write_array_of_option(value, resource.get_meta(meta_key))
+						continue
 					element_type = int(hint_parts[0])
 					if element_type == TYPE_OBJECT: element_class = hint_parts[1]
+					
 					hint_ok = true
 			elif prop.hint == PROPERTY_HINT_ARRAY_TYPE: # Godot 4: "VariantType/ClassName:VariantType" or "VariantType:VariantType"
 				var main_type_str = prop.hint_string.split(":", true, 1)[0]

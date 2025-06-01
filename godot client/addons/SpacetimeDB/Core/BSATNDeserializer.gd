@@ -327,6 +327,14 @@ func _get_reader_callable_for_property(resource: Resource, prop: Dictionary) -> 
 
 # Reads a value for a specific property using the determined reader.
 func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary):
+	prints("Reading property", prop, resource is Option)
+	
+	var meta: String = ""
+	if resource.has_meta("bsatn_type_" + prop.name):
+		meta = resource.get_meta("bsatn_type_" + prop.name).to_lower()
+	if prop.class_name == &'Option':
+		return _read_option(spb, resource, prop, meta)
+
 	var reader_callable := _get_reader_callable_for_property(resource, prop)
 
 	if not reader_callable.is_valid():
@@ -358,6 +366,7 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 	
 	#if resource is Option:
 	#	return _populate_option_from_bytes(spb, resource)
+	
 		
 	# Check if resource is a Rust enum and handle special case
 	if resource is RustEnum:
@@ -379,7 +388,6 @@ func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) ->
 		var prop_name: StringName = prop.name
 		var prop_type: Variant.Type = prop.type
 		var value_start_pos = spb.get_position()
-
 		# Read the value using the universal reader function
 		var value = _read_value_for_property(spb, resource, prop)
 		# Check for errors *after* attempting to read
@@ -436,33 +444,9 @@ func _populate_enum_from_bytes(spb: StreamPeerBuffer, resource: Resource) -> boo
 # Populates the data property of a sumtype enum
 func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:	
 	var enum_type: StringName = resource.get_meta("enum_options")[resource.value]
-	# Special handling for Vec<T>
-	if enum_type.begins_with("vec"):
-		var type: StringName = enum_type.get_slice("_", 1)
-		var reader: Callable = _get_primitive_reader_from_bsatn_type(type)
-		var length: int = read_u32_le(spb)
-		resource.data = Array()
-		if reader.is_valid():
-			for _i in range(length):
-				resource.data.append(reader.call(spb))
-			return true
-		var script: Script = _possible_row_schemas.get(type.to_lower())
-		if script and script.can_instantiate():
-			for _i in range(length):
-				var new_resource = script.new()
-				_populate_resource_from_bytes(new_resource, spb)
-				resource.data.append(new_resource)
-			return true
-		return false
-		
-	var reader = _get_primitive_reader_from_bsatn_type(enum_type)
-	if reader.is_valid():
-		resource.data = reader.call(spb)
-		return true
-	var script: Script = _possible_row_schemas.get(enum_type.to_lower())
-	if script and script.can_instantiate():
-		resource.data = script.new()
-		_populate_resource_from_bytes(resource.data, spb)
+	var data = _read_value_from_bsatn_type(spb, enum_type, &"")
+	if data:
+		resource.data = data
 		return true
 	return false
 	
@@ -485,7 +469,7 @@ func _read_value_from_bsatn_type(spb: StreamPeerBuffer, bsatn_type_str: String, 
 	# 2. Handle Vec<T> (e.g., "vec_u8", "vec_mycustomresource")
 	# Assumes bsatn_type_str is already lowercase
 	if bsatn_type_str.begins_with("vec_"):
-		var element_bsatn_type_str = bsatn_type_str.substr(4) # This will also be lowercase
+		var element_bsatn_type_str = bsatn_type_str.right(-4) # This will also be lowercase
 		
 		var array_length := read_u32_le(spb)
 		if has_error(): return null
@@ -503,10 +487,18 @@ func _read_value_from_bsatn_type(spb: StreamPeerBuffer, bsatn_type_str: String, 
 			temp_array.append(element_value)
 		return temp_array
 
-	# 3. Handle Custom Resource (non-array)
+	# 3. Handle Option<T> (e.g., "opt_u8", "opt_mycustomresource")
+	# Assumes bsatn_type_str is already lowercase
+	if bsatn_type_str.begins_with("opt_"):
+		var element_bsatn_type_str = bsatn_type_str.right(-4) # This will also be lowercase
+		var option = _read_option(spb, null, {"name": context_prop_name_for_error}, element_bsatn_type_str)
+		return option
+
+	# 4. Handle Custom Resource (non-array)
 	# _possible_row_schemas keys are table_name.to_lower().replace("_", "")
 	# bsatn_type_str from metadata should be .to_lower()'d before calling this.
 	var schema_key = bsatn_type_str.replace("_", "") # e.g., "maindamage" -> "maindamage", "my_type" -> "mytype"
+	prints("schema", schema_key, "context", context_prop_name_for_error)
 	if _possible_row_schemas.has(schema_key):
 		var script: Script = _possible_row_schemas.get(schema_key)
 		if script and script.can_instantiate():
@@ -532,7 +524,6 @@ func _read_option(spb: StreamPeerBuffer, parent_resource_containing_option: Reso
 	var tag_pos := spb.get_position()
 	var is_present_tag := read_u8(spb) 
 	if has_error(): return null # Error reading tag
-
 	if is_present_tag == 1: # It's None
 		option_instance.set_none()
 		if debug_mode: print("DEBUG: _read_option: Read None for Option property '%s'" % option_prop_name)
@@ -553,9 +544,8 @@ func _read_option(spb: StreamPeerBuffer, parent_resource_containing_option: Reso
 				return null
 
 		if debug_mode: print("DEBUG: _read_option: Read Some for Option property '%s', deserializing inner type: '%s'" % [option_prop_name, inner_bsatn_type_str_to_use])
-
 		var inner_value = _read_value_from_bsatn_type(spb, inner_bsatn_type_str_to_use, option_prop_name)
-		
+		prints("inner_value", inner_value)
 		if has_error():
 			# Error should have been set by _read_value_from_bsatn_type or its callees.
 			# Add context if the error message doesn't already mention the property.
@@ -588,9 +578,13 @@ func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) ->
 	var element_type_code: Variant.Type = TYPE_MAX
 	var element_class_name: StringName = &""
 
+	
+
 	if hint == PROPERTY_HINT_TYPE_STRING and ":" in hint_string: # Godot 3 style: "Type:TypeName"
 		var hint_parts = hint_string.split(":", true, 1)
-		if hint_parts.size() == 2: element_type_code = int(hint_parts[0]); element_class_name = hint_parts[1] if element_type_code == TYPE_OBJECT else &""
+		if hint_parts.size() == 2: 
+			element_type_code = int(hint_parts[0]); 
+			element_class_name = hint_parts[1]
 		else: _set_error("Array property '%s': Bad hint_string format '%s'." % [prop_name, hint_string], start_pos); return []
 	elif hint == PROPERTY_HINT_ARRAY_TYPE: # Godot 4 style: "VariantType/ClassName:VariantType" or "VariantType:VariantType"
 		var main_type_str = hint_string.split(":", true, 1)[0]
@@ -598,7 +592,7 @@ func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) ->
 		else: element_type_code = int(main_type_str)
 	else: _set_error("Array property '%s' needs a typed hint. Hint: %d, HintString: '%s'" % [prop_name, hint, hint_string], start_pos); return []
 	if element_type_code == TYPE_MAX: _set_error("Could not determine element type for array '%s'." % prop_name, start_pos); return []
-
+	
 	# 3. Create a temporary "prototype" dictionary for the element
 	var element_prop_sim = { "name": prop_name + "[element]", "type": element_type_code, "class_name": element_class_name, "usage": PROPERTY_USAGE_STORAGE, "hint": 0, "hint_string": "" }
 
@@ -891,7 +885,7 @@ func _read_subscription_error_data_manual(spb: StreamPeerBuffer) -> Subscription
 func parse_packet(buffer: PackedByteArray) -> Resource:
 	clear_error()
 	if buffer.is_empty(): _set_error("Input buffer is empty", 0); return null
-
+	
 	var spb := StreamPeerBuffer.new(); spb.data_array = buffer
 
 	var compression_tag := read_u8(spb)

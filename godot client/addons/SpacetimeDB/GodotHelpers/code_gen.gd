@@ -292,7 +292,13 @@ func generate_enum_gdscript(type_def, module_name) -> String:
 		var type = x.get("type", "")
 		var rust_type = META_TYPE_MAP.get(type, type) 
 		if x.has("is_array_inside_option"):
+			rust_type = "opt_vec_%s" % rust_type
+		elif x.has("is_option_inside_array"):
+			rust_type = "vec_opt_%s" % rust_type
+		elif x.has("is_array"):
 			rust_type = "vec_%s" % rust_type
+		elif x.has("is_option"):
+			rust_type = "opt_%s" % rust_type
 		return "&'%s'" % rust_type if not rust_type.is_empty() else "&''"
 		))] + \
 	"\tset_meta('bsatn_enum_type', &'%s')\n" % _class_name + \
