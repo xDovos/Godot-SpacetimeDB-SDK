@@ -326,9 +326,7 @@ func _get_reader_callable_for_property(resource: Resource, prop: Dictionary) -> 
 	return reader_callable
 
 # Reads a value for a specific property using the determined reader.
-func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary):
-	prints("Reading property", prop, resource is Option)
-	
+func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary):	
 	var meta: String = ""
 	if resource.has_meta("bsatn_type_" + prop.name):
 		meta = resource.get_meta("bsatn_type_" + prop.name).to_lower()
@@ -498,7 +496,6 @@ func _read_value_from_bsatn_type(spb: StreamPeerBuffer, bsatn_type_str: String, 
 	# _possible_row_schemas keys are table_name.to_lower().replace("_", "")
 	# bsatn_type_str from metadata should be .to_lower()'d before calling this.
 	var schema_key = bsatn_type_str.replace("_", "") # e.g., "maindamage" -> "maindamage", "my_type" -> "mytype"
-	prints("schema", schema_key, "context", context_prop_name_for_error)
 	if _possible_row_schemas.has(schema_key):
 		var script: Script = _possible_row_schemas.get(schema_key)
 		if script and script.can_instantiate():
@@ -545,7 +542,7 @@ func _read_option(spb: StreamPeerBuffer, parent_resource_containing_option: Reso
 
 		if debug_mode: print("DEBUG: _read_option: Read Some for Option property '%s', deserializing inner type: '%s'" % [option_prop_name, inner_bsatn_type_str_to_use])
 		var inner_value = _read_value_from_bsatn_type(spb, inner_bsatn_type_str_to_use, option_prop_name)
-		prints("inner_value", inner_value)
+
 		if has_error():
 			# Error should have been set by _read_value_from_bsatn_type or its callees.
 			# Add context if the error message doesn't already mention the property.
