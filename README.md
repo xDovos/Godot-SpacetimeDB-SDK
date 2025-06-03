@@ -310,7 +310,7 @@ The SDK handles serialization between Godot types and SpacetimeDB's BSATN format
 
 ## Limitations & TODO
 
-*   **`Option<T>` Not Supported:** Rust's `Option<T>` cannot be directly mapped. Avoid using it in table definitions or implement workarounds.
+*   **Option<T> and Vec<T>** Currently limited to 1 layer of nesting: Option<Vec<T>>, Vec<Option<T>> only. No Option<Option<T>> or Vec<Vec<T>> etc...
 *   **Compression:** As noted above, only uncompressed messages are fully supported bidirectionally.
 *   **`unsubscribe()`:** May not function reliably in all cases.
 *   **Error Handling:** Can be improved, especially for reducer call failures beyond basic connection errors.
