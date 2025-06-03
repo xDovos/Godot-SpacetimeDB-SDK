@@ -131,26 +131,38 @@ func write_vec_u8(v: PackedByteArray) -> void:
 func write_rust_enum(rust_enum: RustEnum) -> void:
 	write_u8(rust_enum.value)
 	var sub_class: String = rust_enum.get_meta("enum_options")[rust_enum.value]
+	var data = rust_enum.data
 	if sub_class.begins_with("vec"):
-		if rust_enum.data is not Array:
+		if data is not Array:
 			_set_error("Sum type of rust enum is Vec<T> but the godot type is not an array.")
 			return
-		var vec_type = sub_class.get_slice("_", 1)
-		write_u32_le(rust_enum.data.size()) # Write array length (u32)
-		for element in rust_enum.data:
-			_write_argument_value(element, vec_type)
+		var vec_type = sub_class.right(-4)
+		# If it's an Option type, we need to remove the opt prefix for the serializer
+		# This is a special case, the enum needs more info for the deserializer
+		if vec_type.begins_with("opt"):
+			vec_type = vec_type.right(-4)
+		_write_argument_value(data, vec_type)
+		return
+	if sub_class.begins_with("opt"):
+		if data is not Option:
+			_set_error("Sum type of rust enum is Option<T> but the godot type is not an Option.")
+			return
+		var opt_type = sub_class.right(-4)
+		# If it's a Vec type, we need to remove the vec prefix for the serializer
+		# This is a special case, the enum needs more info for the deserializer
+		if opt_type.begins_with("vec"):
+			opt_type = opt_type.right(-4)
+		_write_argument_value(data, opt_type)
 		return
 	if not sub_class.is_empty():
-		var data = rust_enum.data
 		if not data:
 			data = _generate_default_type(sub_class)
 		_write_argument_value(data, sub_class)
 
-func _write_option(option_value: Option, parent_resource: Resource, option_property_name: StringName, rust_type: String) -> bool:
+func _write_option(option_value: Option, option_property_name: StringName, rust_type: String) -> bool:
 	if not option_value is Option:
 		_set_error("Value provided to _write_option is not an Option instance (type: %s) for property '%s'." % [typeof(option_value), option_property_name])
 		return false
-
 	if option_value.is_none():
 		write_u8(1) # Tag for None
 		if has_error():
@@ -162,71 +174,23 @@ func _write_option(option_value: Option, parent_resource: Resource, option_prope
 		if has_error():
 			_set_error("Failed to write Some tag for Option property '%s'." % option_property_name)
 			return false
-
-		var inner_value = option_value.unwrap()
-		var inner_value_type: Variant.Type = typeof(inner_value)
-		
-		var bsatn_meta_key_for_inner_type = ""
-		
-		if rust_type.is_empty():
-			bsatn_meta_key_for_inner_type = "bsatn_type_" + option_property_name
+		if rust_type.begins_with("vec"):
+			if option_value.unwrap() is not Array:
+				_set_error("Option type is Vec<T> but the godot type is not an array.")
+				return false
+			var vec_type = rust_type.right(-4)
+			_write_argument_value(option_value.unwrap(), vec_type)
 		else:
-			bsatn_meta_key_for_inner_type = "bsatn_type_" + rust_type
-			
-		var specific_writer_for_inner_value: StringName = &""
-		var element_type_for_inner_array: Variant.Type = TYPE_MAX # if T is Array
-		var element_class_for_inner_array: StringName = &""    # if T is Array[Object]
-		if parent_resource == option_value:
-			if rust_type.begins_with("vec_"):
-				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_meta_key_for_inner_type)
-				if not inner_value.is_empty():
-					var inner_element_bsatn_type = rust_type
-					element_type_for_inner_array = typeof(inner_value[0])
-					if element_type_for_inner_array == TYPE_OBJECT and inner_value[0] is Resource:
-						element_class_for_inner_array = inner_value[0].get_class() 
-					elif inner_element_bsatn_type == "u8": element_type_for_inner_array = TYPE_INT
-					elif inner_element_bsatn_type == "string": element_type_for_inner_array = TYPE_STRING 
-				else:
-					element_type_for_inner_array = TYPE_OBJECT
-			else:
-				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_meta_key_for_inner_type)
-		elif parent_resource.has_meta(bsatn_meta_key_for_inner_type):
-			var bsatn_type_str = str(parent_resource.get_meta(bsatn_meta_key_for_inner_type)).to_lower()
-			# if T - is Vec<U> (bsatn_type_test_none = &'vec_u8')
-			if bsatn_type_str.begins_with("vec_"):
-				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_type_str)
-				
-				if inner_value_type == TYPE_ARRAY and not specific_writer_for_inner_value == &"write_vec_u8": # Vec<Resource> or Vec<Primitive != u8>
-					# Get type from Array
-					# example - "vec_mycustomtype" or "vec_u32"
-					var inner_element_bsatn_type = bsatn_type_str.substr(4) # "mycustomtype" or "u32"
-					
-					specific_writer_for_inner_value = _get_specific_writer_method_name(inner_element_bsatn_type)
-					
-					# Not sure about that
-					if not inner_value.is_empty():
-						element_type_for_inner_array = typeof(inner_value[0])
-						if element_type_for_inner_array == TYPE_OBJECT and inner_value[0] is Resource:
-							element_class_for_inner_array = inner_value[0].get_class() 
-							
-					elif inner_element_bsatn_type == "u8": element_type_for_inner_array = TYPE_INT
-					elif inner_element_bsatn_type == "string": element_type_for_inner_array = TYPE_STRING 
-					# ...  ...
-					else:
-						element_type_for_inner_array = TYPE_OBJECT
-			else: 
-				print(bsatn_type_str)
-				specific_writer_for_inner_value = _get_specific_writer_method_name(bsatn_type_str)
-		else:
-			_set_error("Missing 'bsatn_type' metadata for Option property '%s' in resource '%s'. Cannot determine inner type T for serialization." % [option_property_name, parent_resource.get_class()])
-			return false
-			
-		if not _write_value(inner_value, inner_value_type, specific_writer_for_inner_value, element_type_for_inner_array, element_class_for_inner_array):
-			if not has_error(): _set_error("Failed to write 'Some' value for Option property '%s'." % option_property_name)
-			return false
-
+			_write_argument_value(option_value.unwrap(), rust_type)				
 		return true
-		
+
+func _write_array_of_option(array_of_option_value: Array, rust_type: String) -> bool:
+	write_u32_le(array_of_option_value.size())
+	for option_value in array_of_option_value:
+		if not _write_option(option_value, "", rust_type):
+			return false
+	return true
+
 # --- Core Serialization Logic ---
 
 # Helper to get the specific BSATN writer METHOD NAME based on metadata value.
@@ -290,7 +254,6 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 				
 				for element in value:
 					if has_error(): return false # Stop early if an error occurred writing previous elements
-
 					# Recursively call _write_value for the element.
 					# Pass the element's type info.
 					# Crucially, pass the specific_writer_override determined from the *array's* metadata,
@@ -300,7 +263,7 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 						if not has_error(): _set_error("Failed to write array element.") # Ensure error is set
 						return false
 			TYPE_OBJECT:
-				if value is Option:
+				if value is Option:	
 					_set_error("Internal error: _write_value called directly for an Option instance. This should be handled by _serialize_resource_fields.")
 					return false
 				if value is RustEnum:
@@ -328,6 +291,7 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 	if resource is RustEnum:
 		write_rust_enum(resource)
 		return true
+		
 	
 	var properties: Array = resource.get_script().get_script_property_list()
 	for prop in properties:
@@ -336,11 +300,6 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 		var prop_name: StringName = prop.name
 		var prop_type: Variant.Type = prop.type
 		var value = resource.get(prop_name) # Get the actual value from the resource instance
-		if value is Option:
-			if not _write_option(value, resource, prop_name, ""):
-				if not has_error(): _set_error("Failed to write Option property '%s'" % prop_name)
-				return false
-			continue
 		var specific_writer_method: StringName = &""
 		var element_type: Variant.Type = TYPE_MAX
 		var element_class: StringName = &""
@@ -350,7 +309,11 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 		if resource.has_meta(meta_key):
 			# This metadata applies to the field itself, or to the *elements* if it's an array.
 			specific_writer_method = _get_specific_writer_method_name(resource.get_meta(meta_key))
-
+			
+		if value is Option:
+			_write_option(value, prop_name, resource.get_meta(meta_key))
+			continue
+		
 		# If the property is an array, we need element type info for the recursive call
 		if prop_type == TYPE_ARRAY:
 			# Extract element type info from the hint string (Godot 3 or 4 format)
@@ -358,8 +321,12 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 			if prop.hint == PROPERTY_HINT_TYPE_STRING and ":" in prop.hint_string: # Godot 3: "Type:TypeName"
 				var hint_parts = prop.hint_string.split(":", true, 1)
 				if hint_parts.size() == 2:
+					if hint_parts[1] == "Option":						
+						_write_array_of_option(value, resource.get_meta(meta_key))
+						continue
 					element_type = int(hint_parts[0])
 					if element_type == TYPE_OBJECT: element_class = hint_parts[1]
+					
 					hint_ok = true
 			elif prop.hint == PROPERTY_HINT_ARRAY_TYPE: # Godot 4: "VariantType/ClassName:VariantType" or "VariantType:VariantType"
 				var main_type_str = prop.hint_string.split(":", true, 1)[0]
@@ -437,11 +404,9 @@ func _write_argument_value(value, rust_type: String = "") -> bool:
 				_write_argument_value(v, rust_type)
 		TYPE_OBJECT:
 			if value is RustEnum:
-				write_rust_enum(value)
-				
-			if value is Option:
-				_write_option(value, value, "", rust_type)
-				
+				write_rust_enum(value)				
+			elif value is Option:
+				_write_option(value, "", rust_type)				
 			elif value is Resource:
 				# Serialize resource fields directly inline (recursive)
 				if not _serialize_resource_fields(value):
