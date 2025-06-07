@@ -532,7 +532,7 @@ func parse_schema(schema: Dictionary, module_name: String) -> Dictionary:
 			parsed_types_list.append(type_data)
 		elif sum_type_def: 
 			var parsed_variants := []
-			type_data["is_sum_type"] = not is_sum_option(sum_type_def)
+			type_data["is_sum_type"] = is_sum_type(sum_type_def)
 			for v in sum_type_def.get("variants", []):
 				var variant_data := { "name": v.get("name",{}).get("some", null) }
 				var type = parse_sum_type(v.get("algebraic_type", {}), variant_data, schema_types_raw)
@@ -656,6 +656,17 @@ func is_sum_option(sum_def) -> bool:
 
 
 	return found_some and found_none and none_is_unit
+
+func is_sum_type(sum_def) -> bool:
+	var variants = sum_def.get("variants", [])
+	for variant in variants:
+		var type = variant.get("algebraic_type", {})
+		if not type.has("Product"):
+			return true
+		var elements = type.Product.get("elements", [])
+		if elements.size() > 0:
+			return true
+	return false
 
 # Recursively parse a field type
 func parse_field_type(field_type: Dictionary, data: Dictionary, schema_types: Array) -> String:
