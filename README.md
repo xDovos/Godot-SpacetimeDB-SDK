@@ -99,6 +99,12 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
         elif update.status.status_type == UpdateStatusData.StatusType.COMMITTED:
             print("Reducer call (ReqID: %d) committed." % update.reducer_call.request_id)
             # Optionally inspect update.status.committed_update for DB changes
+    
+    # listening for the game closing/crashing to disconnect cleanly from the server.
+    func _notification(what: int) -> void:
+        if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_CRASH:
+            SpacetimeDB.disconnect_db()
+
     ```
 
 6.  **React to Data Changes:** You have two main ways:
