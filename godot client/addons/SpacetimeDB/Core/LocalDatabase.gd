@@ -114,18 +114,18 @@ func apply_table_update(table_update: TableUpdateData):
 
 # --- Access Methods ---
 
-func get_row(table_name: String, primary_key_value) -> Resource:
+func get_row(table_name: String, primary_key_value) -> _ModuleTable:
 	var table_name_lower := table_name.to_lower().replace("_","")
 	if _tables.has(table_name_lower):
 		return _tables[table_name_lower].get(primary_key_value) # Returns null if not found
 	return null
 	
-func get_all_rows(table_name: String) -> Array[Resource]:
+func get_all_rows(table_name: String) -> Array[_ModuleTable]:
 	var table_name_lower := table_name.to_lower().replace("_","")
 	if _tables.has(table_name_lower):
 		var table_dict: Dictionary = _tables[table_name_lower]
 		var values_array: Array = table_dict.values()
-		var typed_result_array: Array[Resource] = []
+		var typed_result_array: Array[_ModuleTable] = []
 		typed_result_array.assign(values_array)
 
 		return typed_result_array

@@ -119,3 +119,6 @@ func _on_transactions_completed(table_name: String):
 	if table_name != selected_table_name:
 		return
 	transactions_completed.emit()
+
+func get_table_data() -> Array[_ModuleTable]:
+	return SpacetimeDB.get_local_database().get_all_rows(selected_table_name)
