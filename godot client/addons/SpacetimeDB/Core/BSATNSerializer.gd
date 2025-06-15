@@ -223,7 +223,6 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 				  element_variant_type: Variant.Type = TYPE_MAX, \
 				  element_class_name: StringName = &"" \
 				 ) -> bool:
-	
 	# 1. Use specific writer method if provided (highest priority, except for arrays)
 	if specific_writer_override != &"" and value_variant_type != TYPE_ARRAY:
 		if has_method(specific_writer_override):
@@ -324,9 +323,11 @@ func _serialize_resource_fields(resource: Resource) -> bool:
 					if hint_parts[1] == "Option":						
 						_write_array_of_option(value, resource.get_meta(meta_key))
 						continue
-					element_type = int(hint_parts[0])
-					if element_type == TYPE_OBJECT: element_class = hint_parts[1]
-					
+					# Need to check if this is a split type like 24/17
+					# Take the first part as the element type
+					var hint_type = hint_parts[0].split("/", true, 1) if "/" in hint_parts[0] else [hint_parts[0]]
+					element_type = int(hint_type[0])
+					if element_type == TYPE_OBJECT: element_class = hint_parts[1]					
 					hint_ok = true
 			elif prop.hint == PROPERTY_HINT_ARRAY_TYPE: # Godot 4: "VariantType/ClassName:VariantType" or "VariantType:VariantType"
 				var main_type_str = prop.hint_string.split(":", true, 1)[0]
