@@ -127,16 +127,16 @@ func _check_read(spb: StreamPeerBuffer, bytes_needed: int) -> bool:
 # --- Primitive Value Readers ---
 func read_i8(spb: StreamPeerBuffer) -> int:
 	if not _check_read(spb, 1): return 0
-	var uval := spb.get_u8(); return uval - 256 if uval >= 128 else uval
+	return spb.get_8();
 func read_i16_le(spb: StreamPeerBuffer) -> int:
 	if not _check_read(spb, 2): return 0
-	spb.big_endian = false; var uval := spb.get_u16(); return uval - 65536 if uval >= 32768 else uval
+	spb.big_endian = false; return spb.get_16();
 func read_i32_le(spb: StreamPeerBuffer) -> int:
 	if not _check_read(spb, 4): return 0
-	spb.big_endian = false; var uval := spb.get_u32(); return int(uval - 4294967296) if uval >= 2147483648 else int(uval)
+	spb.big_endian = false; return spb.get_32();
 func read_i64_le(spb: StreamPeerBuffer) -> int:
 	if not _check_read(spb, 8): return 0
-	spb.big_endian = false; var uval := spb.get_u64(); return uval - (1 << 64) if uval >= (1 << 63) else uval
+	spb.big_endian = false; return spb.get_64();
 func read_u8(spb: StreamPeerBuffer) -> int:
 	if not _check_read(spb, 1): return 0
 	return spb.get_u8()
