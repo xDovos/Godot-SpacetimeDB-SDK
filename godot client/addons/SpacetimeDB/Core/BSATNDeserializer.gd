@@ -442,7 +442,7 @@ func _populate_enum_from_bytes(spb: StreamPeerBuffer, resource: Resource) -> boo
 # Populates the data property of a sumtype enum
 func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:	
 	var enum_type: StringName = resource.get_meta("enum_options")[resource.value]
-	var data = _read_value_from_bsatn_type(spb, enum_type, &"")
+	var data = _read_value_from_bsatn_type(spb, enum_type.to_lower(), &"")
 	if data:
 		resource.data = data
 		return true
@@ -612,6 +612,9 @@ func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) ->
 		if resource.has_meta(array_bsatn_meta_key): # Check array's metadata first (defines element BSATN type)
 			var bsatn_element_type_str = str(resource.get_meta(array_bsatn_meta_key)).to_lower()
 			element_reader_callable = _get_primitive_reader_from_bsatn_type(bsatn_element_type_str)
+			# Check if resource is a nested resource in possible row schemas
+			if not element_reader_callable.is_valid() and _possible_row_schemas.has(bsatn_element_type_str):
+				element_reader_callable = Callable(self, "_read_nested_resource")
 			if not element_reader_callable.is_valid() and debug_mode:
 				push_warning("Array '%s' has 'bsatn_type' metadata ('%s'), but it doesn't map to a primitive reader. Falling back to element type hint." % [prop_name, bsatn_element_type_str])
 		
@@ -632,17 +635,16 @@ func _read_array(spb: StreamPeerBuffer, resource: Resource, prop: Dictionary) ->
 		var element_value = null
 		
 		if element_reader_callable.get_object() == self:
-			# Special handling for _read_option when it's an array element
-			if element_reader_method_name == "_read_option":
-				# Pass the determined inner_type_for_option_elements as the 4th argument
-				element_value = element_reader_callable.call(spb, resource, element_prop_sim, inner_type_for_option_elements)
-			# Existing logic for other recursive/contextual readers
-			elif element_reader_method_name == "_read_array" or \
-				 element_reader_method_name == "_read_nested_resource" or \
-				 element_reader_method_name == "_read_array_of_table_updates":
-				element_value = element_reader_callable.call(spb, resource, element_prop_sim) # Pass element prototype for recursion
-			else: # Primitive reader or other simple reader
-				element_value = element_reader_callable.call(spb)
+			match element_reader_method_name:
+				# Special handling for _read_option when it's an array element
+				"_read_option":
+					element_value = element_reader_callable.call(spb, resource, element_prop_sim, inner_type_for_option_elements)
+				# Existing logic for other recursive/contextual readers
+				"_read_array", "_read_nested_resource", "_read_array_of_table_updates":
+					element_value = element_reader_callable.call(spb, resource, element_prop_sim)
+				# Primitive reader or other simple reader
+				_:
+					element_value = element_reader_callable.call(spb)
 		else: 
 			_set_error("Internal error: Invalid element reader callable for array '%s'." % prop_name, element_start_pos); return []
 		
