@@ -9,6 +9,9 @@ func _ready():
 	# Increase buffer size. In general, you don't need this.
 	# options.set_all_buffer_size(1024 * 1024 * 2)
 	
+	# Disable threading (e.g., for web builds)
+	# options.threading = false
+	
 	SpacetimeDB.connect_db(
 		"https://flametime.cfd/spacetime", #WARNING <--- replace it with your url
 		"main", #WARNING <--- replace it with your database

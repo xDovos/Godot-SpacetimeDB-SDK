@@ -114,7 +114,7 @@ func disconnect_from_server(code: int = 1000, reason: String = "Client initiated
 func is_connected_db() -> bool:
 	return _is_connected
 	
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if _websocket == null: return
 
 	_websocket.poll()

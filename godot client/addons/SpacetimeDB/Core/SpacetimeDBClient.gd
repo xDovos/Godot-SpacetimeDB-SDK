@@ -11,6 +11,14 @@ class_name SpacetimeDBClient extends Node
 @export var compression:SpacetimeDBConnection.CompressionPreference;
 @export var debug_mode:bool = true;
 @export var current_subscriptions:Dictionary[int, PackedStringArray]
+@export var use_threading: bool = true
+
+var deserializer_worker: Thread
+var _packet_queue: Array[PackedByteArray] = []
+var _result_queue: Array[Resource] = []
+var _result_mutex: Mutex
+var _packet_mutex: Mutex
+var _thread_should_exit: bool = false
 
 var connection_options: SpacetimeDBConnectionOptions
 var pending_subscriptions:Dictionary[int, PackedStringArray]
@@ -44,10 +52,17 @@ signal reducer_call_timeout(request_id: int) # TODO: Implement timeout logic
 signal transaction_update_received(update: TransactionUpdateData)
 
 func _ready():
-	# Defer initialization until explicitly called or via auto_connect
 	if auto_connect:
 		initialize_and_connect()
-
+		
+func _exit_tree():
+	if deserializer_worker:
+		_packet_mutex.unlock()
+		_result_mutex.unlock()
+		_thread_should_exit = true
+		deserializer_worker.wait_to_finish()
+		deserializer_worker = null
+		
 func print_log(log_message:String):
 	if debug_mode:
 		print(log_message)
@@ -121,7 +136,7 @@ func _generate_connection_id() -> String:
 	for i in 16:
 		random_bytes[i] = rng.randi_range(0, 255)
 	return random_bytes.hex_encode() # Return as hex string
-	
+		
 func _on_token_received(received_token: String):
 	print_log("SpacetimeDBClient: Token acquired.")
 	self._token = received_token
@@ -146,23 +161,92 @@ func _save_token(token_to_save: String):
 	else:
 		printerr("SpacetimeDBClient: Failed to save token to path: ", token_save_path)
 
-
 # --- WebSocket Message Handling ---
-
+func _physics_process(_delta: float) -> void:
+	if use_threading:
+		_process_results_asynchronously()
+	else:
+		_process_packets_synchronously()
+	
 func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
-	if not _deserializer: return # Should not happen if initialized
+	if use_threading:
+		_packet_mutex.lock()
+		_packet_queue.append(bsatn_bytes)
+		_packet_mutex.unlock()
+	else:
+		_packet_queue.append(bsatn_bytes)
+	
+func _thread_loop() -> void:
+	while not _thread_should_exit:
+		_packet_mutex.lock()
+		
+		if _packet_queue.is_empty():
+			_packet_mutex.unlock()
+			OS.delay_msec(10) 
+			continue
+			
+		var packet_to_process = _packet_queue.pop_front()
+		_packet_mutex.unlock()
+		var message_resource = _parse_packet_and_get_resource(packet_to_process)
+		if message_resource:
+			_result_mutex.lock()
+			_result_queue.append(message_resource)
+			_result_mutex.unlock()
+			
+func _process_results_asynchronously():
+	if not _result_mutex: return
 
+	_result_mutex.lock()
+	if _result_queue.is_empty():
+		_result_mutex.unlock()
+		return
+	var results_to_process = _result_queue.duplicate()
+	_result_queue.clear()
+	_result_mutex.unlock()
+	
+	for message_resource in results_to_process:
+		_handle_parsed_message(message_resource)
+
+func _process_packets_synchronously():
+	if _packet_queue.is_empty():
+		return
+		
+	var bytes_to_process = _packet_queue.pop_front()
+	var message_resource = _parse_packet_and_get_resource(bytes_to_process)
+	
+	if message_resource:
+		_handle_parsed_message(message_resource)
+
+func _parse_packet_and_get_resource(bsatn_bytes: PackedByteArray) -> Resource:
+	if not _deserializer: return null
+	
 	var message_resource: Resource = _deserializer.parse_packet(bsatn_bytes)
 	
 	if _deserializer.has_error():
 		printerr("SpacetimeDBClient: Failed to parse BSATN packet: ", _deserializer.get_last_error())
-		return
+		return null
+	
+	return message_resource
+	
+func _thread_process_packet(bsatn_bytes: PackedByteArray) -> void:
+	var message_resource = _parse_packet_and_get_resource(bsatn_bytes)
 
+	if message_resource:
+		_result_mutex.lock()
+		_result_queue.append(message_resource)
+		_result_mutex.unlock()
+		
+func _process_results_synchronously():
+	var results_to_process = _result_queue.duplicate()
+	_result_queue.clear()
+	for message_resource in results_to_process:
+		_handle_parsed_message(message_resource)
+		
+func _handle_parsed_message(message_resource: Resource):
 	if message_resource == null:
-		# Parsing might have returned null without setting error (e.g., unknown type)
-		# Parser should ideally always set an error in this case.
 		printerr("SpacetimeDBClient: Parser returned null message resource.")
 		return
+		
 	# Handle known message types
 	if message_resource is InitialSubscriptionData:
 		var initial_sub: InitialSubscriptionData = message_resource
@@ -212,19 +296,29 @@ func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
 
 	else:
 		print_log("SpacetimeDBClient: Received unhandled message resource type: " + message_resource.get_class())
-
-
 # --- Public API ---
 
 func connect_db(host_url:String, database_name:String, options: SpacetimeDBConnectionOptions = null):
 	if not options:
 		options = SpacetimeDBConnectionOptions.new()
 	connection_options = options
-	self.base_url = host_url;
-	self.database_name = database_name;
+	self.base_url = host_url
+	self.database_name = database_name
 	self.compression = options.compression
 	self.one_time_token = options.one_time_token
 	self.debug_mode = options.debug_mode
+	self.use_threading = options.threading
+	
+	if OS.has_feature("web") and use_threading == true:
+		push_error("Threads are not supported on Web. Threading has been disabled.")
+		use_threading = false;
+		
+	if use_threading:
+		_packet_mutex = Mutex.new()
+		_result_mutex = Mutex.new()
+		deserializer_worker = Thread.new()
+		deserializer_worker.start(_thread_loop) 
+		
 	if not _is_initialized:
 		initialize_and_connect()
 	elif not _connection.is_connected_db():
