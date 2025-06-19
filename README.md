@@ -269,6 +269,8 @@ Since BowOptions in rust is not being used as a sumtype in godot it becomes just
 	
 ## Technical Details
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/flametime/Godot-SpacetimeDB-SDK)
+
 ### Type System & Serialization
 
 The SDK handles serialization between Godot types and SpacetimeDB's BSATN format based on your schema Resources.
