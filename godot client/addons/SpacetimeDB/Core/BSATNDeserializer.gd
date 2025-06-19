@@ -32,6 +32,8 @@ var _last_error: String = ""
 # Stores loaded table row schema scripts: { "table_name_lower": Script }
 var _possible_row_schemas: Dictionary = {}
 var _decompressor := DataDecompressor.new()
+var _deserialization_plan_cache: Dictionary = {}
+
 var debug_mode: bool = false # Controls verbose debug printing
 
 # --- Initialization ---
@@ -358,74 +360,70 @@ func _read_value_for_property(spb: StreamPeerBuffer, resource: Resource, prop: D
 
 # Populates an existing Resource instance from the buffer based on its exported properties.
 func _populate_resource_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:
-	if not resource or not resource.get_script():
+	var script := resource.get_script()
+	if not resource or not script:
 		_set_error("Cannot populate null or scriptless resource", -1 if not spb else spb.get_position())
 		return false
-	
-	#if resource is Option:
-	#	return _populate_option_from_bytes(spb, resource)
-	
-		
-	# Check if resource is a Rust enum and handle special case
+
 	if resource is RustEnum:
 		return _populate_enum_from_bytes(spb, resource)
 
-	var properties: Array = resource.get_script().get_script_property_list()
-	if debug_mode:
-		var prop_names = []
-		for p in properties: prop_names.append(p.name)
-		var resource_id = resource.resource_path if resource.resource_path else resource.get_class()
-		print("DEBUG: _populate_resource: Populating '%s' at pos %d. Properties: %s" % [resource_id, spb.get_position(), prop_names])
+	var plan = _deserialization_plan_cache.get(script)
 
-	for prop in properties:
-		# Skip properties not meant for storage (e.g., editor-only, getters/setters without backing field)
-		if not (prop.usage & PROPERTY_USAGE_STORAGE):
-			if debug_mode: print("DEBUG: _populate_resource: Skipping non-storage property '%s'" % prop.name)
-			continue
+	if plan == null:
+		if debug_mode: print("DEBUG: Creating deserialization plan for script: %s" % script.resource_path)
+		
+		plan = []
+		var properties: Array = script.get_script_property_list()
+		for prop in properties:
+			if not (prop.usage & PROPERTY_USAGE_STORAGE):
+				continue
 
-		var prop_name: StringName = prop.name
-		var prop_type: Variant.Type = prop.type
+			var prop_name: StringName = prop.name
+			var reader_callable: Callable = _get_reader_callable_for_property(resource, prop)
+			
+			if not reader_callable.is_valid():
+				_set_error("Unsupported property or missing reader for '%s' in script '%s'" % [prop_name, script.resource_path], -1)
+				_deserialization_plan_cache[script] = []
+				return false
+				
+			var method_name := reader_callable.get_method()
+			var needs_full_context := method_name in ["_read_array", "_read_nested_resource", "_read_array_of_table_updates", "_read_option"]
+
+			plan.append({
+				"name": prop_name,
+				"type": prop.type,
+				"reader": reader_callable,
+				"full_context": needs_full_context,
+				"prop_dict": prop
+			})
+		
+		_deserialization_plan_cache[script] = plan
+		
+	for instruction in plan:
 		var value_start_pos = spb.get_position()
-		# Read the value using the universal reader function
-		var value = _read_value_for_property(spb, resource, prop)
-		# Check for errors *after* attempting to read
-		if has_error():
-			# Error should have been set by the reader function or _read_value_for_property
-			# Add context if the error message doesn't already mention the property
-			if not _last_error.contains(str(prop_name)):
-				var existing_error = get_last_error() # Consume the error
-				_set_error("Failed reading value for property '%s' in '%s'. Cause: %s" % [prop_name, resource.resource_path if resource else "Unknown", existing_error], value_start_pos)
-			return false # Stop populating this resource on error
+		var value
+		if instruction.full_context:
+			value = instruction.reader.call(spb, resource, instruction.prop_dict)
+		else:
+			value = instruction.reader.call(spb)
 
-		# Set the read value onto the resource property
-		# Handle null carefully - only set if the property can accept it.
-		# For now, assume null means an error occurred or default value should be kept.
+		if has_error():
+			if not _last_error.contains(str(instruction.name)):
+				var existing_error = get_last_error()
+				_set_error("Failed reading value for property '%s' in '%s'. Cause: %s" % [instruction.name, resource.resource_path if resource else "Unknown", existing_error], value_start_pos)
+			return false
+
 		if value != null:
-			# Special handling for assigning to typed arrays to avoid type errors
-			if prop_type == TYPE_ARRAY and value is Array:
-				var target_array = resource.get(prop_name)
+			if instruction.type == TYPE_ARRAY and value is Array:
+				var target_array = resource.get(instruction.name)
 				if target_array is Array:
-					# Use assign() for typed arrays to ensure type safety
 					target_array.assign(value)
 				else:
-					# This might happen if the @export var wasn't initialized e.g. @export var my_arr: Array[int]
-					# Try direct assignment as a fallback, might work for untyped arrays
-					if debug_mode: push_warning("Property '%s' is TYPE_ARRAY but resource.get() returned %s. Attempting direct assignment." % [prop_name, typeof(target_array)])
-					resource[prop_name] = value
-					# Consider adding a type check here in debug mode if needed
+					resource[instruction.name] = value
 			else:
-				# Direct assignment for non-arrays or if array assignment failed
-				resource[prop_name] = value
-		# else: # Value is null
-			# If null is a valid deserialized value for some types, logic needs adjustment here.
-			# Currently, we just don't set the property if null is read (often indicates prior error).
-			# if debug_mode: push_warning("Read null value for property '%s', skipping assignment." % prop_name)
-
-	if debug_mode:
-		var resource_id = resource.resource_path if resource.resource_path else resource.get_class()
-		print("DEBUG: _populate_resource: Finished populating '%s'. New pos: %d" % [resource_id, spb.get_position()])
-
-	return true # Successfully populated all properties
+				resource[instruction.name] = value
+	return true
 
 # Populates the value property of a sumtype enum
 func _populate_enum_from_bytes(spb: StreamPeerBuffer, resource: Resource) -> bool:
@@ -767,10 +765,13 @@ func _read_table_update_instance(spb: StreamPeerBuffer, resource: TableUpdateDat
 
 	var table_name_lower := resource.table_name.to_lower().replace("_","")
 	var row_schema_script: Script = _possible_row_schemas.get(table_name_lower)
-
+	
+	var row_spb := StreamPeerBuffer.new()
+	
 	if not row_schema_script and updates_count > 0:
 		if debug_mode: push_warning("No row schema found for table '%s', cannot deserialize rows. Skipping row data." % resource.table_name)
 		# Consume the data even if we can't parse it
+		
 		for i in range(updates_count):
 			if has_error(): break
 			var update_start_pos := spb.get_position()
@@ -803,7 +804,9 @@ func _read_table_update_instance(spb: StreamPeerBuffer, resource: TableUpdateDat
 		# Process deletes
 		for raw_row_bytes in raw_deletes:
 			var row_resource = row_schema_script.new()
-			var row_spb := StreamPeerBuffer.new(); row_spb.data_array = raw_row_bytes
+			row_spb.data_array = raw_row_bytes
+			row_spb.seek(0) # Важно! Сбрасываем позицию на начало
+			#var row_spb := StreamPeerBuffer.new(); row_spb.data_array = raw_row_bytes
 			if _populate_resource_from_bytes(row_resource, row_spb):
 				if row_spb.get_position() < row_spb.get_size(): push_error("Extra %d bytes after parsing delete row for table '%s'" % [row_spb.get_size() - row_spb.get_position(), resource.table_name])
 				all_parsed_deletes.append(row_resource)
@@ -813,7 +816,8 @@ func _read_table_update_instance(spb: StreamPeerBuffer, resource: TableUpdateDat
 		# Process inserts
 		for raw_row_bytes in raw_inserts:
 			var row_resource = row_schema_script.new()
-			var row_spb := StreamPeerBuffer.new(); row_spb.data_array = raw_row_bytes
+			row_spb.data_array = raw_row_bytes
+			row_spb.seek(0) # Важно! Сбрасываем позицию на начало
 			if _populate_resource_from_bytes(row_resource, row_spb):
 				if row_spb.get_position() < row_spb.get_size(): push_error("Extra %d bytes after parsing insert row for table '%s'" % [row_spb.get_size() - row_spb.get_position(), resource.table_name])
 				all_parsed_inserts.append(row_resource)

@@ -19,6 +19,7 @@ var _result_queue: Array[Resource] = []
 var _result_mutex: Mutex
 var _packet_mutex: Mutex
 var _thread_should_exit: bool = false
+var _message_limit_in_frame:int = 5
 
 var connection_options: SpacetimeDBConnectionOptions
 var pending_subscriptions:Dictionary[int, PackedStringArray]
@@ -197,15 +198,18 @@ func _process_results_asynchronously():
 	if not _result_mutex: return
 
 	_result_mutex.lock()
+	
 	if _result_queue.is_empty():
 		_result_mutex.unlock()
 		return
-	var results_to_process = _result_queue.duplicate()
-	_result_queue.clear()
-	_result_mutex.unlock()
 	
-	for message_resource in results_to_process:
-		_handle_parsed_message(message_resource)
+	var processed_count = 0
+	
+	while not _result_queue.is_empty() and processed_count < _message_limit_in_frame:
+		_handle_parsed_message(_result_queue.pop_front())
+		processed_count += 1
+		
+	_result_mutex.unlock()
 
 func _process_packets_synchronously():
 	if _packet_queue.is_empty():
