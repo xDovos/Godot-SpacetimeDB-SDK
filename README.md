@@ -1,6 +1,9 @@
-# SpacetimeDB Godot SDK
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/41dd6587-9f3c-45cd-b6b4-e144dc4338ac" alt="godot-spacetimedb_128" width="128">
+</p>
 
-## TESTED WITH: `GODOT 4.4.1` and `SpacetimeDB 1.1.0`
+## SpacetimeDB Godot SDK 
+> Tested with: `GODOT 4.4.1` and `SpacetimeDB 1.1.0`
 
 This SDK provides the necessary tools to integrate your Godot Engine project with a SpacetimeDB backend, enabling real-time data synchronization and server interaction directly from your Godot client.
 
@@ -12,7 +15,7 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
 
     Our code-gen tool uses the SpacetimeDB API endpoint to generate all types and reducers, so first upload your SpacetimeDB module to the server.
    
-    IMPORTANT: Every table must have a primary key for the local database and deserialization to work correctly.
+   > Every table must have a primary key for the local database and deserialization to work correctly.
  
 3.  **Copy Addon:** Download the `SpacetimeDB` folder and copy it into your Godot project's `addons/` directory. Create the `addons/` directory at the root of your project if it doesn't exist.
     ```
@@ -121,8 +124,8 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
         func _ready():
             if player_receiver:
                 player_receiver.insert.connect(_on_player_receiver_insert)
-                # Optionally, if you want to process inserts the same way as updates, you could do:
-                # player_receiver.insert.connect(on_player_receiver_update.bind(null))
+                # Optionally, if you want to process updates the same way as inserts, you could do:
+                # player_receiver.update.connect(func(old,new): _on_player_receiver_insert(new));
                 player_receiver.update.connect(_on_player_receiver_update)
                 player_receiver.delete.connect(_on_player_receiver_delete)
             else:
