@@ -440,6 +440,7 @@ func _populate_enum_from_bytes(spb: StreamPeerBuffer, resource: Resource) -> boo
 # Populates the data property of a sumtype enum
 func _populate_enum_data_from_bytes(resource: Resource, spb: StreamPeerBuffer) -> bool:	
 	var enum_type: StringName = resource.get_meta("enum_options")[resource.value]
+	if enum_type == &"": return true
 	var data = _read_value_from_bsatn_type(spb, enum_type.to_lower(), &"")
 	if data:
 		resource.data = data
