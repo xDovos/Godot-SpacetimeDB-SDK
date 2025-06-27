@@ -193,6 +193,9 @@ func read_vector3(spb: StreamPeerBuffer) -> Vector3:
 func read_vector2(spb: StreamPeerBuffer) -> Vector2:
 	var x := read_f32_le(spb); var y := read_f32_le(spb)
 	return Vector2.ZERO if has_error() else Vector2(x, y)
+func read_vector2i(spb: StreamPeerBuffer) -> Vector2i:
+	var x := read_i32_le(spb); var y := read_i32_le(spb)
+	return Vector2i.ZERO if has_error() else Vector2i(x, y)
 func read_color(spb: StreamPeerBuffer) -> Color:
 	var r := read_f32_le(spb); var g := read_f32_le(spb); var b := read_f32_le(spb); var a := read_f32_le(spb)
 	return Color.BLACK if has_error() else Color(r, g, b, a)
@@ -308,6 +311,7 @@ func _get_reader_callable_for_property(resource: Resource, prop: Dictionary) -> 
 				TYPE_FLOAT: reader_callable = Callable(self, "read_f32_le") # Default float is f32
 				TYPE_STRING: reader_callable = Callable(self, "read_string_with_u32_len")
 				TYPE_VECTOR2: reader_callable = Callable(self, "read_vector2")
+				TYPE_VECTOR2I: reader_callable = Callable(self, "read_vector2i")
 				TYPE_VECTOR3: reader_callable = Callable(self, "read_vector3")
 				TYPE_COLOR: reader_callable = Callable(self, "read_color")
 				TYPE_QUATERNION: reader_callable = Callable(self, "read_quaternion")
