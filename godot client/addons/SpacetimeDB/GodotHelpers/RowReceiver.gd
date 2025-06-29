@@ -105,10 +105,10 @@ func _on_insert(_table_name: String, row: _ModuleTable):
 		return;
 	insert.emit(row)
 
-func _on_update(_table_name: String, row: _ModuleTable, previous: _ModuleTable):
+func _on_update(_table_name: String, previous: _ModuleTable, row: _ModuleTable):
 	if _table_name != selected_table_name:
 		return
-	update.emit(row, previous)
+	update.emit(previous, row)
 
 func _on_delete(_table_name: String, row: _ModuleTable):
 	if _table_name != selected_table_name:
