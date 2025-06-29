@@ -113,6 +113,10 @@ func write_vector2(v: Vector2) -> void:
 	if v == null: v = Vector2.ZERO # Handle potential null value
 	write_f32_le(v.x); write_f32_le(v.y)
 
+func write_vector2i(v: Vector2i) -> void:
+	if v == null: v = Vector2i.ZERO # Handle potential null value
+	write_i32_le(v.x); write_i32_le(v.y)
+	
 func write_color(v: Color) -> void:
 	if v == null: v = Color.BLACK # Handle potential null value
 	write_f32_le(v.r); write_f32_le(v.g); write_f32_le(v.b); write_f32_le(v.a)
@@ -239,6 +243,7 @@ func _write_value(value, value_variant_type: Variant.Type, specific_writer_overr
 			TYPE_FLOAT: write_f32_le(value) # Default float serialization is f32
 			TYPE_STRING: write_string_with_u32_len(value)
 			TYPE_VECTOR2: write_vector2(value)
+			TYPE_VECTOR2I: write_vector2i(value)
 			TYPE_VECTOR3: write_vector3(value)
 			TYPE_COLOR: write_color(value)
 			TYPE_QUATERNION: write_quaternion(value)
@@ -395,6 +400,7 @@ func _write_argument_value(value, rust_type: String = "") -> bool:
 				_: write_f32_le(value) # Default f32
 		TYPE_STRING: write_string_with_u32_len(value)
 		TYPE_VECTOR2: write_vector2(value)
+		TYPE_VECTOR2I: write_vector2i(value)
 		TYPE_VECTOR3: write_vector3(value)
 		TYPE_COLOR: write_color(value)
 		TYPE_QUATERNION: write_quaternion(value)
@@ -430,6 +436,7 @@ func _generate_default_type(rust_type: String) -> Variant:
 		&"String": return ""
 		&"Vector3": return Vector3.ZERO
 		&"Vector2": return Vector2.ZERO
+		&"Vector2i": return Vector2i.ZERO
 		&"Color": return Color.BLACK
 		&"Quaternion": return Quaternion.IDENTITY
 		_: return null
