@@ -121,4 +121,7 @@ func _on_transactions_completed(table_name: String):
 	transactions_completed.emit()
 
 func get_table_data() -> Array[_ModuleTable]:
-	return SpacetimeDB.get_local_database().get_all_rows(selected_table_name)
+	var local_db = SpacetimeDB.get_local_database()
+	if local_db:
+		return local_db.get_all_rows(selected_table_name)
+	return []
