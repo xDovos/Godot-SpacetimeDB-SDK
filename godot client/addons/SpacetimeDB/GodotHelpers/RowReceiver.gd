@@ -128,8 +128,8 @@ func _unsubscribe_from_table(table_name_sn: StringName):
 func _on_insert(row: _ModuleTable):
 	insert.emit(row)
 
-func _on_update(row: _ModuleTable, previous: _ModuleTable):
-	update.emit(row, previous)
+func _on_update(previous: _ModuleTable, row: _ModuleTable):
+	update.emit(previous, row)
 
 func _on_delete(row: _ModuleTable):
 	delete.emit(row)
