@@ -28,10 +28,10 @@ signal total_bytes(sended: int, received: int)
 
 
 func _init(options: SpacetimeDBConnectionOptions):
-	Performance.add_custom_monitor("spacetime/sended_packets", get_sended_packets)
-	Performance.add_custom_monitor("spacetime/received_packets", get_received_packets)
-	Performance.add_custom_monitor("spacetime/sended_bytes", get_sended_bytes)
-	Performance.add_custom_monitor("spacetime/received_bytes", get_received_bytes)
+	#Performance.add_custom_monitor("spacetime/sended_packets", get_sended_packets)
+	#Performance.add_custom_monitor("spacetime/received_packets", get_received_packets)
+	#Performance.add_custom_monitor("spacetime/sended_bytes", get_sended_bytes)
+	#Performance.add_custom_monitor("spacetime/received_bytes", get_received_bytes)
 	
 	_websocket.inbound_buffer_size = options.inbound_buffer_size
 	_websocket.outbound_buffer_size = options.outbound_buffer_size
