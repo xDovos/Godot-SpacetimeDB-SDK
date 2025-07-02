@@ -13,6 +13,13 @@ signal update(prev: _ModuleTable, row: _ModuleTable)
 signal delete(row: _ModuleTable)
 signal transactions_completed
 
+var _current_db_instance = null 
+
+func _get_db():
+	if _current_db_instance == null or not is_instance_valid(_current_db_instance):
+		_current_db_instance = SpacetimeDB.get_local_database()
+	return _current_db_instance
+	
 func on_set(schema: _ModuleTable):
 	
 	_derived_table_names.clear()
@@ -77,11 +84,13 @@ func _get_property_list() -> Array:
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return;
+	
+	var db = _get_db()
+	if db == null:
+		await SpacetimeDB.database_initialized
+		db = _get_db()
 		
-	SpacetimeDB.row_inserted.connect(_on_insert)
-	SpacetimeDB.row_updated.connect(_on_update)
-	SpacetimeDB.row_deleted.connect(_on_delete)
-	SpacetimeDB.row_transactions_completed.connect(_on_transactions_completed)
+	_subscribe_to_table(selected_table_name)
 
 	if not table_to_receive:
 		push_error("No data schema. Node path: ", get_path())
@@ -89,35 +98,43 @@ func _ready() -> void:
 	
 	if get_parent() and not get_parent().is_node_ready():
 		await get_parent().ready
+	
+	var data = db.get_all_rows(selected_table_name)
+	for row_data in data:
+		_on_insert(row_data)
+		
+func _subscribe_to_table(table_name_sn: StringName):
+	if Engine.is_editor_hint() or table_name_sn == &"":
+		return
+	var db = _get_db()
+	if not is_instance_valid(db): return
 
-	var db = SpacetimeDB.get_local_database()
+	db.subscribe_to_inserts(table_name_sn, Callable(self, "_on_insert"))
+	db.subscribe_to_updates(table_name_sn, Callable(self, "_on_update"))
+	db.subscribe_to_deletes(table_name_sn, Callable(self, "_on_delete"))
+	db.subscribe_to_transactions_completed(table_name_sn, Callable(self, "_on_transactions_completed"))
 
-	if db == null:
-		await SpacetimeDB.database_initialized
-	else:
-		var data = db.get_all_rows(selected_table_name)
-		for row_data in data:
-			_on_insert(selected_table_name, row_data)
+func _unsubscribe_from_table(table_name_sn: StringName):
+	if Engine.is_editor_hint() or table_name_sn == &"":
+		return
+	var db = _get_db()
+	if not is_instance_valid(db): return 
 
-			
-func _on_insert(_table_name: String, row: _ModuleTable):
-	if _table_name != selected_table_name:
-		return;
+	db.unsubscribe_from_inserts(table_name_sn, Callable(self, "_on_insert"))
+	db.unsubscribe_from_updates(table_name_sn, Callable(self, "_on_update"))
+	db.unsubscribe_from_deletes(table_name_sn, Callable(self, "_on_delete"))
+	db.unsubscribe_from_transactions_completed(table_name_sn, Callable(self, "_on_transactions_completed"))
+	
+func _on_insert(row: _ModuleTable):
 	insert.emit(row)
 
-func _on_update(_table_name: String, previous: _ModuleTable, row: _ModuleTable):
-	if _table_name != selected_table_name:
-		return
-	update.emit(previous, row)
+func _on_update(row: _ModuleTable, previous: _ModuleTable):
+	update.emit(row, previous)
 
-func _on_delete(_table_name: String, row: _ModuleTable):
-	if _table_name != selected_table_name:
-		return
+func _on_delete(row: _ModuleTable):
 	delete.emit(row)
 
-func _on_transactions_completed(table_name: String):
-	if table_name != selected_table_name:
-		return
+func _on_transactions_completed():
 	transactions_completed.emit()
 
 func get_table_data() -> Array[_ModuleTable]:
