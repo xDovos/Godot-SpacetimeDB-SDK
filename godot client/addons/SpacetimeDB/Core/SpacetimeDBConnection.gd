@@ -16,18 +16,40 @@ var preferred_compression: CompressionPreference = CompressionPreference.NONE # 
 var _total_bytes_send := 0
 var _total_bytes_received := 0
 
+var _total_messages_send := 0
+var _total_messages_received := 0
+
 signal connected
 signal disconnected
 signal connection_error(code: int, reason: String)
 signal message_received(data: PackedByteArray) 
+signal total_messages(sended: int, received: int)
 signal total_bytes(sended: int, received: int)
 
+
 func _init(options: SpacetimeDBConnectionOptions):
+	Performance.add_custom_monitor("spacetime/sended_packets", get_sended_packets)
+	Performance.add_custom_monitor("spacetime/received_packets", get_received_packets)
+	Performance.add_custom_monitor("spacetime/sended_bytes", get_sended_bytes)
+	Performance.add_custom_monitor("spacetime/received_bytes", get_received_bytes)
+	
 	_websocket.inbound_buffer_size = options.inbound_buffer_size
 	_websocket.outbound_buffer_size = options.outbound_buffer_size
 	set_compression_preference(options.compression)
 	self._debug_mode = options.debug_mode
 	set_process(false) # Don't process until connect is called
+
+func get_sended_bytes():
+	return _total_bytes_send;
+	
+func get_received_bytes():
+	return _total_bytes_received;
+	
+func get_sended_packets():
+	return _total_messages_send;
+
+func get_received_packets():
+	return _total_messages_received;
 	
 func print_log(log_message:String):
 	if _debug_mode:
@@ -44,7 +66,9 @@ func send_bytes(bytes:PackedByteArray) -> Error:
 	var err := _websocket.send(bytes)
 	if err == OK:
 		_total_bytes_send += bytes.size()
-	total_bytes.emit(_total_bytes_send, _total_bytes_received)
+		_total_messages_send += 1;
+		total_messages.emit(_total_messages_send, _total_messages_received)
+		total_bytes.emit(_total_bytes_send, _total_bytes_received)
 	return err;
 	
 func connect_to_database(base_url: String, database_name: String, connection_id: String): # Added connection_id
@@ -134,6 +158,8 @@ func _physics_process(delta: float) -> void:
 				_total_bytes_received += packet_bytes.size()
 				# We only support BSATN now
 				emit_signal("message_received", packet_bytes)
+				_total_messages_received += 1;
+				total_messages.emit(_total_messages_send, _total_messages_received)
 				total_bytes.emit(_total_bytes_send, _total_bytes_received)
 
 		WebSocketPeer.STATE_CONNECTING:
