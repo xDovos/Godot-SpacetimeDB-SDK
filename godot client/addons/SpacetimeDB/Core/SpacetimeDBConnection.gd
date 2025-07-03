@@ -14,10 +14,14 @@ enum CompressionPreference { NONE = 0, BROTLI = 1, GZIP = 2 }
 var preferred_compression: CompressionPreference = CompressionPreference.NONE # Default to None
 
 var _total_bytes_send := 0
+var _second_bytes_send := 0
 var _total_bytes_received := 0
+var _second_bytes_received := 0
 
 var _total_messages_send := 0
+var _second_messages_send := 0
 var _total_messages_received := 0
+var _second_messages_received := 0
 
 signal connected
 signal disconnected
@@ -28,10 +32,14 @@ signal total_bytes(sended: int, received: int)
 
 
 func _init(options: SpacetimeDBConnectionOptions):
-	#Performance.add_custom_monitor("spacetime/sended_packets", get_sended_packets)
-	#Performance.add_custom_monitor("spacetime/received_packets", get_received_packets)
-	#Performance.add_custom_monitor("spacetime/sended_bytes", get_sended_bytes)
-	#Performance.add_custom_monitor("spacetime/received_bytes", get_received_bytes)
+	#Performance.add_custom_monitor("spacetime/second_received_packets", get_second_received_packets)
+	#Performance.add_custom_monitor("spacetime/second_received_bytes", get_second_received_bytes)
+	#Performance.add_custom_monitor("spacetime/total_received_packets", get_received_packets)
+	#Performance.add_custom_monitor("spacetime/total_received_kbytes", get_received_kbytes)
+	#Performance.add_custom_monitor("spacetime/second_sended_packets", get_second_sended_packets)
+	#Performance.add_custom_monitor("spacetime/second_sended_bytes", get_second_sended_bytes)
+	#Performance.add_custom_monitor("spacetime/total_sended_packets", get_sended_packets)
+	#Performance.add_custom_monitor("spacetime/total_sended_kbytes", get_sended_kbytes)
 	
 	_websocket.inbound_buffer_size = options.inbound_buffer_size
 	_websocket.outbound_buffer_size = options.outbound_buffer_size
@@ -39,18 +47,38 @@ func _init(options: SpacetimeDBConnectionOptions):
 	self._debug_mode = options.debug_mode
 	set_process(false) # Don't process until connect is called
 
-func get_sended_bytes():
-	return _total_bytes_send;
+func get_second_sended_bytes():
+	var amount = _second_bytes_send
+	_second_bytes_send = 0
+	return amount;
 	
-func get_received_bytes():
-	return _total_bytes_received;
+func get_second_received_bytes():
+	var amount = _second_bytes_received
+	_second_bytes_received = 0
+	return amount;
+	
+func get_second_sended_packets():
+	var amount = _second_messages_send
+	_second_messages_send = 0
+	return amount;
+
+func get_second_received_packets():
+	var amount = _second_messages_received
+	_second_messages_received = 0
+	return amount;
+
+func get_sended_kbytes() -> float:
+	return float(float(_total_bytes_send)/1000.0);
+	
+func get_received_kbytes() -> float:
+	return float(float(_total_bytes_received)/1000.0);
 	
 func get_sended_packets():
 	return _total_messages_send;
 
 func get_received_packets():
 	return _total_messages_received;
-	
+
 func print_log(log_message:String):
 	if _debug_mode:
 		print(log_message)
@@ -65,7 +93,9 @@ func set_compression_preference(preference: CompressionPreference):
 func send_bytes(bytes:PackedByteArray) -> Error:
 	var err := _websocket.send(bytes)
 	if err == OK:
+		_second_bytes_send += bytes.size()
 		_total_bytes_send += bytes.size()
+		_second_messages_send += 1;
 		_total_messages_send += 1;
 		total_messages.emit(_total_messages_send, _total_messages_received)
 		total_bytes.emit(_total_bytes_send, _total_bytes_received)
@@ -156,9 +186,11 @@ func _physics_process(delta: float) -> void:
 			while _websocket.get_available_packet_count() > 0:
 				var packet_bytes := _websocket.get_packet()
 				_total_bytes_received += packet_bytes.size()
+				_second_bytes_received += packet_bytes.size()
 				# We only support BSATN now
 				emit_signal("message_received", packet_bytes)
 				_total_messages_received += 1;
+				_second_messages_received += 1;
 				total_messages.emit(_total_messages_send, _total_messages_received)
 				total_bytes.emit(_total_bytes_send, _total_bytes_received)
 
