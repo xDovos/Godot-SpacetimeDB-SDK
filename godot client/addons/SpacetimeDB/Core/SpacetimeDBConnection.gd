@@ -7,6 +7,7 @@ var _token: String
 var _is_connected := false
 var _connection_requested := false
 var _debug_mode := false
+
 # Protocol constants
 const BSATN_PROTOCOL = "v1.bsatn.spacetimedb"
 
@@ -130,7 +131,8 @@ func connect_to_database(base_url: String, database_name: String, connection_id:
 		CompressionPreference.BROTLI: compression_str = "Brotli"
 		CompressionPreference.GZIP: compression_str = "Gzip"
 		_: compression_str = "None" # Fallback
-
+		
+			
 	query_params += "&compression=" + compression_str
 	# Add light mode parameter if needed (based on C# code)
 	# var light_mode = false # Example
@@ -181,16 +183,33 @@ func _physics_process(delta: float) -> void:
 				_is_connected = true
 				_connection_requested = false
 				emit_signal("connected")
-
+				
 			# Process incoming packets
 			while _websocket.get_available_packet_count() > 0:
 				var packet_bytes := _websocket.get_packet()
+				if packet_bytes.is_empty(): continue
 				_total_bytes_received += packet_bytes.size()
 				_second_bytes_received += packet_bytes.size()
-				# We only support BSATN now
-				emit_signal("message_received", packet_bytes)
-				_total_messages_received += 1;
-				_second_messages_received += 1;
+				if packet_bytes.size() < 1:
+					printerr("Received an invalid empty packet.")
+					continue
+
+				var compression_tag = packet_bytes[0]
+				var payload = packet_bytes.slice(1)
+				#print("Packet Size: ", packet_bytes.size(), ", Compression Tag: 0x%02X" % compression_tag)
+
+				if compression_tag == 2:
+					#print(payload.hex_encode())
+					var decompressed_bytes = DataDecompressor.decompress_packet(payload)
+					if not decompressed_bytes.is_empty():
+						message_received.emit(decompressed_bytes)
+						_total_messages_received += 1
+						
+				else:
+					if compression_tag != 0:
+						push_warning("Received packet with unsupported compression tag 0x%02X. Treating as uncompressed." % compression_tag)
+					message_received.emit(payload)
+					_total_messages_received += 1
 				total_messages.emit(_total_messages_send, _total_messages_received)
 				total_bytes.emit(_total_bytes_send, _total_bytes_received)
 

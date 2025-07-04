@@ -74,10 +74,10 @@ pub fn client_connected(ctx: &ReducerContext) {
         new_int_vec.push(20);
 
         let mut string_vec = Vec::new();
+        for i in 0..50 {
+            string_vec.push(format!("String {}", i));
+        }
 
-        string_vec.push(String::from("QWE"));
-        string_vec.push(String::from("ASD"));
-        string_vec.push(String::from("ZXC"));
         let test_damage: Damage = Damage {
             amount: 16,
             source: ctx.sender,

@@ -10,7 +10,7 @@ pub struct Lobby {
     player_count: u32,
 }
 
-const MAX_PLAYERS_PER_LOBBY: u32 = 2;
+const MAX_PLAYERS_PER_LOBBY: u32 = 16;
 
 pub fn user_disconnected(ctx: &ReducerContext, lobby_id: u64) {
     if let Some(mut lobby) = ctx.db.lobby().id().find(lobby_id) {

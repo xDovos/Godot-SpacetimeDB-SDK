@@ -31,9 +31,8 @@ const ROW_LIST_ROW_OFFSETS := 1
 var _last_error: String = ""
 # Stores loaded table row schema scripts: { "table_name_lower": Script }
 var _possible_row_schemas: Dictionary = {}
-var _decompressor := DataDecompressor.new()
 var _deserialization_plan_cache: Dictionary = {}
-
+var _pending_data := PackedByteArray()
 var debug_mode: bool = false # Controls verbose debug printing
 
 # --- Initialization ---
@@ -839,18 +838,43 @@ func _read_table_update_instance(spb: StreamPeerBuffer, resource: TableUpdateDat
 func _get_query_update_stream(spb: StreamPeerBuffer, table_name_for_error: String) -> StreamPeerBuffer:
 	var compression_tag_raw := read_u8(spb)
 	if has_error(): return null
+
 	match compression_tag_raw:
-		COMPRESSION_NONE: return spb
-		COMPRESSION_BROTLI, COMPRESSION_GZIP:
-			var compression_type = SpacetimeDBConnection.CompressionPreference.BROTLI if compression_tag_raw == COMPRESSION_BROTLI else SpacetimeDBConnection.CompressionPreference.GZIP
-			var compression_name = "Brotli" if compression_type == SpacetimeDBConnection.CompressionPreference.BROTLI else "Gzip"
-			var compressed_len := read_u32_le(spb); if has_error(): return null
-			var compressed_data := read_bytes(spb, compressed_len); if has_error(): return null
-			var decompressed_data := _decompressor.decompress(compressed_data, compression_type)
-			if _decompressor.has_error() or decompressed_data == null:
-				_set_error("Failed to decompress %s data for table '%s'. Cause: %s" % [compression_name, table_name_for_error, _decompressor.get_last_error()], spb.get_position() - compressed_len - 4 - 1); return null
-			var temp_spb := StreamPeerBuffer.new(); temp_spb.data_array = decompressed_data; return temp_spb
-		_: _set_error("Unknown QueryUpdate compression tag %d for table '%s'" % [compression_tag_raw, table_name_for_error], spb.get_position() - 1); return null
+		COMPRESSION_NONE:
+			#print("Not")
+			return spb
+
+		COMPRESSION_GZIP:
+			print("Compressed?")
+			var compressed_len := read_u32_le(spb)
+			if has_error(): return null
+			if compressed_len == 0:
+				return StreamPeerBuffer.new()
+
+			var compressed_data := read_bytes(spb, compressed_len)
+			if has_error(): return null
+			var gzip_stream := StreamPeerGZIP.new()
+			if gzip_stream.start_decompression() != OK:
+				_set_error("Failed to start local Gzip decompression for table '%s'." % table_name_for_error, spb.get_position())
+				return null
+			
+			gzip_stream.put_data(compressed_data)
+			gzip_stream.finish()
+			
+			var available_bytes = gzip_stream.get_available_bytes()
+			if available_bytes == 0:
+				return StreamPeerBuffer.new()
+			var result = gzip_stream.get_data(available_bytes)
+			if result[0] != OK:
+				_set_error("Failed to get decompressed GZIP data for table '%s'." % [table_name_for_error], spb.get_position())
+				return null
+			var decompressed_data: PackedByteArray = result[1]
+			var temp_spb := StreamPeerBuffer.new()
+			temp_spb.data_array = decompressed_data
+			return temp_spb
+		_:
+			_set_error("Unknown QueryUpdate compression tag %d for table '%s'" % [compression_tag_raw, table_name_for_error], spb.get_position() - 1)
+			return null
 
 # Manual reader specifically for SubscriptionErrorData due to Option<T> fields
 # Keep this manual until Option<T> is handled generically (if ever needed)
@@ -887,25 +911,58 @@ func _read_subscription_error_data_manual(spb: StreamPeerBuffer) -> Subscription
 	resource.error_message = read_string_with_u32_len(spb)
 	return null if has_error() else resource
 
-# --- Top-Level Message Parsing ---
+func process_bytes_and_extract_messages(new_data: PackedByteArray) -> Array[Resource]:
+	if new_data.is_empty():
+		return []
+	_pending_data.append_array(new_data)
+	var parsed_messages: Array[Resource] = []
+	var spb := StreamPeerBuffer.new()
+	while not _pending_data.is_empty():
+		clear_error()
+		spb.data_array = _pending_data
+		spb.seek(0)
+		var initial_buffer_size = _pending_data.size()
+		var message_resource = _parse_message_from_stream(spb)
 
+		if has_error():
+			if _last_error.contains("past end of buffer"):
+				clear_error()
+				break
+			else:
+				printerr("BSATNDeserializer: Unrecoverable parsing error: %s. Clearing buffer to prevent infinite loop." % get_last_error())
+				_pending_data.clear()
+				break
+				
+		if message_resource:
+			parsed_messages.append(message_resource)
+			var bytes_consumed = spb.get_position()
+			
+			if bytes_consumed == 0:
+				printerr("BSATNDeserializer: Parser consumed 0 bytes. Clearing buffer to prevent infinite loop.")
+				_pending_data.clear()
+				break
+			_pending_data = _pending_data.slice(bytes_consumed)
+		else:
+			break
+			
+	return parsed_messages
+	
+# --- Top-Level Message Parsing ---
 # Entry point: Parses the entire byte buffer into a top-level message Resource.
 func parse_packet(buffer: PackedByteArray) -> Resource:
+	push_warning("BSATNDeserializer.parse_packet is deprecated. Use process_bytes_and_extract_messages instead.")
+	var results = process_bytes_and_extract_messages(buffer)
+	return results[0] if not results.is_empty() else null
+	
+
+func _parse_message_from_stream(spb: StreamPeerBuffer) -> Resource:
 	clear_error()
-	if buffer.is_empty(): _set_error("Input buffer is empty", 0); return null
+	#if spb.get_available_bytes().is_empty(): _set_error("Input buffer is empty", 0); return null
 	
-	var spb := StreamPeerBuffer.new(); spb.data_array = buffer
-
-	var compression_tag := read_u8(spb)
-	if has_error(): return null
-	
-	match compression_tag:
-		0: pass
-		1: _set_error("Unsupported compression tag: 0x%02X" % compression_tag, 0); return null
-		2: 
-			#DataDecompressor.new().decompress(buffer, SpacetimeDBConnection.CompressionPreference.GZIP)
-			_set_error("Unsupported compression tag: 0x%02X" % compression_tag, 0); return null
-
+	var start_pos = spb.get_position()
+	if not _check_read(spb, 1):
+		return null
+		
 	var msg_type := read_u8(spb)
 	if has_error(): return null
 

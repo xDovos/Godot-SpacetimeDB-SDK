@@ -164,18 +164,24 @@ func _save_token(token_to_save: String):
 
 # --- WebSocket Message Handling ---
 func _physics_process(_delta: float) -> void:
-	if use_threading:
-		_process_results_asynchronously()
-	else:
-		_process_packets_synchronously()
+	_process_results_asynchronously()
 	
-func _on_websocket_message_received(bsatn_bytes: PackedByteArray):
-	if use_threading:
-		_packet_mutex.lock()
-		_packet_queue.append(bsatn_bytes)
-		_packet_mutex.unlock()
-	else:
-		_packet_queue.append(bsatn_bytes)
+func _on_websocket_message_received(decompressed_bytes: PackedByteArray):
+	
+	if not _deserializer: return
+	var parsed_messages: Array[Resource] = _deserializer.process_bytes_and_extract_messages(decompressed_bytes)
+	
+	if _deserializer.has_error():
+		printerr("SpacetimeDBClient: Deserializer error: " + _deserializer.get_last_error())
+		return
+		
+	for message_resource in parsed_messages:
+		if use_threading:
+			_result_mutex.lock()
+			_result_queue.append(message_resource)
+			_result_mutex.unlock()
+		else:
+			_handle_parsed_message(message_resource)
 	
 func _thread_loop() -> void:
 	while not _thread_should_exit:
@@ -195,12 +201,12 @@ func _thread_loop() -> void:
 			_result_mutex.unlock()
 			
 func _process_results_asynchronously():
-	if not _result_mutex: return
+	if use_threading and not _result_mutex: return
 
-	_result_mutex.lock()
+	if use_threading: _result_mutex.lock()
 	
 	if _result_queue.is_empty():
-		_result_mutex.unlock()
+		if use_threading: _result_mutex.unlock()
 		return
 	
 	var processed_count = 0
@@ -209,18 +215,8 @@ func _process_results_asynchronously():
 		_handle_parsed_message(_result_queue.pop_front())
 		processed_count += 1
 		
-	_result_mutex.unlock()
-
-func _process_packets_synchronously():
-	if _packet_queue.is_empty():
-		return
-		
-	var bytes_to_process = _packet_queue.pop_front()
-	var message_resource = _parse_packet_and_get_resource(bytes_to_process)
+	if use_threading: _result_mutex.unlock()
 	
-	if message_resource:
-		_handle_parsed_message(message_resource)
-
 func _parse_packet_and_get_resource(bsatn_bytes: PackedByteArray) -> Resource:
 	if not _deserializer: return null
 	
