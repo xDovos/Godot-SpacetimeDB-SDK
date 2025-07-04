@@ -844,41 +844,12 @@ func _get_query_update_stream(spb: StreamPeerBuffer, table_name_for_error: Strin
 			return spb
 
 		COMPRESSION_GZIP:
-			print("DEBUG: Local GZIP block detected for table '%s'!" % table_name_for_error)
 			var compressed_len := read_u32_le(spb)
 			if has_error(): return null
-			if compressed_len == 0:
-				return StreamPeerBuffer.new()
-
+			if compressed_len == 0:return StreamPeerBuffer.new()
+			
 			var compressed_data := read_bytes(spb, compressed_len)
-			if has_error(): return null
-			
-			var gzip_stream := StreamPeerGZIP.new()
-			if gzip_stream.start_decompression() != OK:
-				_set_error("Failed to start local Gzip decompression for table '%s'." % table_name_for_error, spb.get_position())
-				return null
-			
-			gzip_stream.put_data(compressed_data)
-			
-			var decompressed_data := PackedByteArray()
-			var chunk_size := 4096
-
-			while true:
-				var result = gzip_stream.get_partial_data(chunk_size)
-				if result[0] == OK:
-					if result[1].is_empty():
-						break 
-					decompressed_data.append_array(result[1])
-				elif result[0] == ERR_UNAVAILABLE:
-					break
-				else:
-					_set_error("Error while reading local decompressed stream for table '%s'." % table_name_for_error, spb.get_position())
-					return null
-
-			if gzip_stream.finish() != OK:
-				_set_error("Failed to finish local Gzip stream for table '%s'. Data might be corrupted." % table_name_for_error, spb.get_position())
-				return null
-
+			var decompressed_data := DataDecompressor.decompress_packet(compressed_data)
 			var temp_spb := StreamPeerBuffer.new()
 			temp_spb.data_array = decompressed_data
 			return temp_spb

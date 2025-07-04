@@ -14,20 +14,21 @@ static func decompress_packet(compressed_bytes: PackedByteArray) -> PackedByteAr
 		printerr("DataDecompressor Error: Failed to put data into Gzip stream.")
 		return []
 		
-	var available_bytes = gzip_stream.get_available_bytes()
-	if available_bytes == 0:
-		var decompressed_data := PackedByteArray()
-		var chunk_size := 4096
+	var decompressed_data := PackedByteArray()
+	var chunk_size := 4096 
+	
+	while true:
+		var result: Array = gzip_stream.get_partial_data(chunk_size)
+		var status: Error = result[0]
+		var chunk: PackedByteArray = result[1]
 
-		while true:
-			var result: Array = gzip_stream.get_partial_data(chunk_size)
-			if result[0] == OK and not result[1].is_empty():
-				decompressed_data.append_array(result[1])
-			else:
+		if status == OK:
+			if chunk.is_empty():
 				break
-		return decompressed_data
-	var result = gzip_stream.get_data(available_bytes)
-	if result[0] != OK:
-		printerr("DataDecompressor Error: Failed to get decompressed Gzip data.")
-		return []
-	return result[1]
+			decompressed_data.append_array(chunk)
+		elif status == ERR_UNAVAILABLE:
+			break
+		else:
+			printerr("DataDecompressor Error: Failed while getting partial data.")
+			return []
+	return decompressed_data
