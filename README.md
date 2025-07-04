@@ -56,12 +56,16 @@ Follow these steps to get your Godot project connected to SpacetimeDB:
         SpacetimeDB.database_initialized.connect(_on_spacetimedb_database_initialized)
         SpacetimeDB.transaction_update_received.connect(_on_transaction_update) # For reducer results
 
-        var options = SpacetimeDBConnectionOptions.new()
-        options.compression = SpacetimeDBConnection.CompressionPreference.NONE
+	var options = SpacetimeDBConnectionOptions.new()
+        
+        options.compression = SpacetimeDBConnection.CompressionPreference.NONE # Default
+        # OR
+        # options.compression = SpacetimeDBConnection.CompressionPreference.GZIP
+
         options.one_time_token = true
-        options.debug_mode = false
-        options.inbound_buffer_size = 1024 * 1024 * 2 # 2MB
-        options.outbound_buffer_size = 1024 * 1024 * 2 # 2MB
+        options.debug_mode = false # Default
+        options.inbound_buffer_size = 1024 * 1024 * 2 # 2MB. Default
+        options.outbound_buffer_size = 1024 * 1024 * 2 # 2MB. Default
 
         SpacetimeDB.connect_db(
             "http://127.0.0.1:3000", # Base HTTP URL
@@ -313,7 +317,7 @@ The SDK handles serialization between Godot types and SpacetimeDB's BSATN format
 *   **Client -> Server:** Not currently implemented. Messages sent from the client (like reducer calls) are uncompressed.
 *   **Server -> Client:**
     *   **None (0x00):** Fully supported. This is the default requested by the client.
-    *   **Gzip (0x02):** **NOT SUPPORTED.** The deserializer will fail if it receives Gzip data.
+    *   **Gzip (0x02):** Experimental support.
     *   **Brotli (0x01):** **NOT SUPPORTED out-of-the-box.** If the server sends Brotli-compressed messages, the parser will report an error. To handle Brotli, you would need to:
         1.  Obtain or create a GDExtension/GDNative module wrapping a Brotli library.
         2.  Modify `addons/SpacetimeDB/BSATNDeserializer.gd` (`_get_query_update_stream` function and potentially `parse_packet`) to call your native decompression function.
@@ -322,7 +326,7 @@ The SDK handles serialization between Godot types and SpacetimeDB's BSATN format
 ## Limitations & TODO
 
 *   **Option<T> and Vec<T>** Currently limited to 1 layer of nesting: Option<Vec<T>>, Vec<Option<T>> only. No Option<Option<T>> or Vec<Vec<T>> etc...
-*   **Compression:** As noted above, only uncompressed messages are fully supported bidirectionally.
+*   **Compression:** Brotli - not supported.
 *   **`unsubscribe()`:** May not function reliably in all cases.
 *   **Error Handling:** Can be improved, especially for reducer call failures beyond basic connection errors.
 *   **Configuration:** More options could be added (timeouts, reconnection).
