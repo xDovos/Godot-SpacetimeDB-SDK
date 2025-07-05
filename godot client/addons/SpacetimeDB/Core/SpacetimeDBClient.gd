@@ -15,6 +15,7 @@ class_name SpacetimeDBClient extends Node
 
 var deserializer_worker: Thread
 var _packet_queue: Array[PackedByteArray] = []
+var _packet_semaphore: Semaphore
 var _result_queue: Array[Resource] = []
 var _result_mutex: Mutex
 var _packet_mutex: Mutex
@@ -166,35 +167,35 @@ func _save_token(token_to_save: String):
 func _physics_process(_delta: float) -> void:
 	_process_results_asynchronously()
 	
-func _on_websocket_message_received(decompressed_bytes: PackedByteArray):
-	
-	if not _deserializer: return
-	var parsed_messages: Array[Resource] = _deserializer.process_bytes_and_extract_messages(decompressed_bytes)
-	
-	if _deserializer.has_error():
-		printerr("SpacetimeDBClient: Deserializer error: " + _deserializer.get_last_error())
-		return
+func _on_websocket_message_received(raw_bytes: PackedByteArray):
+	if not _is_initialized: return
+	if use_threading:
+		_packet_mutex.lock()
+		_packet_queue.append(raw_bytes)
+		_packet_mutex.unlock()
+		_packet_semaphore.post()
+	else:
+		var message = _parse_packet_and_get_resource(_decompress_and_parse(raw_bytes))
+		_result_queue.append(message)
 		
-	for message_resource in parsed_messages:
-		if use_threading:
-			_result_mutex.lock()
-			_result_queue.append(message_resource)
-			_result_mutex.unlock()
-		else:
-			_handle_parsed_message(message_resource)
-	
 func _thread_loop() -> void:
 	while not _thread_should_exit:
+		_packet_semaphore.wait()
+		if _thread_should_exit:break
+		
 		_packet_mutex.lock()
 		
 		if _packet_queue.is_empty():
 			_packet_mutex.unlock()
-			OS.delay_msec(10) 
 			continue
 			
-		var packet_to_process = _packet_queue.pop_front()
+		var packet_to_process:PackedByteArray = _packet_queue.pop_back()
 		_packet_mutex.unlock()
-		var message_resource = _parse_packet_and_get_resource(packet_to_process)
+		
+		var message_resource:Resource = null
+		var payload = _decompress_and_parse(packet_to_process)
+		message_resource = _parse_packet_and_get_resource(payload)
+		
 		if message_resource:
 			_result_mutex.lock()
 			_result_queue.append(message_resource)
@@ -216,31 +217,26 @@ func _process_results_asynchronously():
 		processed_count += 1
 		
 	if use_threading: _result_mutex.unlock()
+
+func _decompress_and_parse(raw_bytes: PackedByteArray) -> PackedByteArray:
+	var compression = raw_bytes[0]
+	var payload = raw_bytes.slice(1)
+	match compression:
+		0: pass;
+		1: printerr("SpacetimeDBClient (Thread) : Brotli compression not supported!")
+		2: payload = DataDecompressor.decompress_packet(payload)
+	return payload
 	
 func _parse_packet_and_get_resource(bsatn_bytes: PackedByteArray) -> Resource:
 	if not _deserializer: return null
 	
-	var message_resource: Resource = _deserializer.parse_packet(bsatn_bytes)
+	var message_resource: Resource = _deserializer.process_bytes_and_extract_messages(bsatn_bytes)[0]
 	
 	if _deserializer.has_error():
 		printerr("SpacetimeDBClient: Failed to parse BSATN packet: ", _deserializer.get_last_error())
 		return null
 	
 	return message_resource
-	
-func _thread_process_packet(bsatn_bytes: PackedByteArray) -> void:
-	var message_resource = _parse_packet_and_get_resource(bsatn_bytes)
-
-	if message_resource:
-		_result_mutex.lock()
-		_result_queue.append(message_resource)
-		_result_mutex.unlock()
-		
-func _process_results_synchronously():
-	var results_to_process = _result_queue.duplicate()
-	_result_queue.clear()
-	for message_resource in results_to_process:
-		_handle_parsed_message(message_resource)
 		
 func _handle_parsed_message(message_resource: Resource):
 	if message_resource == null:
@@ -315,6 +311,7 @@ func connect_db(host_url:String, database_name:String, options: SpacetimeDBConne
 		
 	if use_threading:
 		_packet_mutex = Mutex.new()
+		_packet_semaphore = Semaphore.new()
 		_result_mutex = Mutex.new()
 		deserializer_worker = Thread.new()
 		deserializer_worker.start(_thread_loop) 

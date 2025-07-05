@@ -14,9 +14,9 @@ func _total_bytes(sended:int, received:int):
 	pass;
 	
 func _total_messages(sended:int, received:int):
-	if received == 50:
-		SpacetimeDB._connection.total_bytes.disconnect(_total_bytes)
-		SpacetimeDB._connection.total_messages.disconnect(_total_messages)
+	#if received == 50:
+	#	SpacetimeDB._connection.total_bytes.disconnect(_total_bytes)
+	#	SpacetimeDB._connection.total_messages.disconnect(_total_messages)
 	
 	$HBoxContainer/VBoxContainer/count.text = str(sended)
 	$HBoxContainer/VBoxContainer2/count.text = str(received)
